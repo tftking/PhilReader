@@ -1,15 +1,6 @@
-node_modules/
-.expo/
-dist/
-build/
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-*.orig.*
-web-build/
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.build/
 .DS_Store
-*.pbxproj
-ios/
-android/
