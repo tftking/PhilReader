@@ -1,16 +1,15 @@
-# Xcode derived data & build output
-DerivedData/
+node_modules/
+.expo/
+dist/
 build/
-*.xcuserstate
-xcuserdata/
-
-# Swift Package Manager
-.build/
-*.resolved
-
-# macOS
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
 .DS_Store
-
-# CocoaPods (not used here, but just in case)
-Pods/
-Podfile.lock
+*.pbxproj
+ios/
+android/

@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "PhilReader",
+    "slug": "philreader",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.philreader.app",
+      "infoPlist": {
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "Comic Book Archive",
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Owner",
+            "LSItemContentTypes": [
+              "com.philreader.cbz",
+              "public.zip-archive"
+            ]
+          }
+        ],
+        "UTExportedTypeDeclarations": [
+          {
+            "UTTypeIdentifier": "com.philreader.cbz",
+            "UTTypeDescription": "Comic Book Archive",
+            "UTTypeConformsTo": ["public.zip-archive", "public.data"],
+            "UTTypeTagSpecification": {
+              "public.filename-extension": ["cbz"],
+              "public.mime-type": "application/x-cbz"
+            }
+          }
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      },
+      "package": "com.philreader.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [{ "mimeType": "application/x-cbz" }, { "mimeType": "application/zip" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-document-picker",
+        { "iCloudContainerEnvironment": "Production" }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "scheme": "philreader"
+  }
+}

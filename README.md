@@ -1,52 +1,77 @@
 # PhilReader
 
-A clean, fast CBZ comic reader for iOS and iPadOS — inspired by Panels.
+A clean, fast CBZ comic reader for iOS (and Android) built with React Native + Expo.
 
 ## Features
 
-- 📚 **Library Grid** — Cover thumbnails with reading progress badges
-- 📖 **Paged Reader** — Swipe left/right through pages, full-screen
-- 🔍 **Pinch & Double-tap Zoom** — Up to 5× zoom on any page
-- 🔄 **Right-to-Left Mode** — Manga reading direction toggle
-- 📥 **File Import** — Via the + button *or* "Open with PhilReader" from Files app
-- 💾 **Progress Saving** — Resumes where you left off, auto-saves on close
-- 🗑️ **Delete** — Long-press a comic to remove it
-- 📱 iPad & iPhone support
+- 📚 Library grid with cover thumbnails and reading progress
+- 📖 Horizontal paged reader
+- 🔍 Pinch-to-zoom + double-tap zoom on every page
+- 🔄 Right-to-Left mode for manga
+- 📥 Import via Files app or the + button
+- 💾 Reading progress auto-saved
+- 🗑️ Long-press a comic to delete
+- 📱 iPhone, iPad, and Android
 
-## Requirements
+## Stack
 
-- iOS 16.0+
-- Xcode 15+
+- [Expo](https://expo.dev) SDK 51 (managed workflow)
+- [Expo Router](https://expo.github.io/router) v3 for navigation
+- [JSZip](https://stuk.github.io/jszip/) for .cbz extraction (pure JS, no native module)
+- [react-native-gesture-handler](https://docs.swmansion.com/react-native-gesture-handler/) + [react-native-reanimated](https://docs.swmansion.com/react-native-reanimated/) for zoom
+- [expo-image](https://docs.expo.dev/versions/latest/sdk/image/) for efficient image rendering
+- [AsyncStorage](https://react-native-async-storage.github.io/async-storage/) for persistence
 
 ## Setup
 
-1. Clone the repo
-2. Open `PhilReader.xcodeproj` in Xcode
-3. Xcode will automatically resolve the [ZipFoundation](https://github.com/weichsel/ZipFoundation) Swift Package dependency
-4. Set your Team in *Signing & Capabilities*
-5. Build & Run on a device or simulator
+```bash
+# Install dependencies
+npm install
+
+# Start dev server
+npx expo start
+
+# Run on iOS simulator
+npx expo start --ios
+
+# Run on Android
+npx expo start --android
+```
+
+> **Note:** To run on a physical device without building, install the **Expo Go** app and scan the QR code.
+
+## Building for production
+
+```bash
+# Install EAS CLI
+npm install -g eas-cli
+
+# Build for iOS
+eas build --platform ios
+
+# Build for Android
+eas build --platform android
+```
 
 ## Importing Comics
 
-**From the app:** Tap the **+** button → browse your Files  
-**From Files app:** Long-press a `.cbz` → Share → Open with PhilReader
+- **In-app:** Tap the **+** FAB → pick any `.cbz` file
+- **From Files app (iOS):** Long-press a `.cbz` → Share → Open with PhilReader
 
-## Architecture
+## Project Structure
 
-| File | Purpose |
-|------|---------|
-| `PhilReaderApp.swift` | App entry, handles file open URLs |
-| `ContentView.swift` | Root view |
-| `LibraryView.swift` | Grid of comics, file import |
-| `ReaderView.swift` | Full-screen paged reader + zoom |
-| `ComicBook.swift` | Data model |
-| `CBZService.swift` | ZIP extraction via ZipFoundation |
-| `LibraryManager.swift` | Import, persist, cover cache |
-
-## Dependencies
-
-- [ZipFoundation](https://github.com/weichsel/ZipFoundation) — Swift ZIP library (resolved automatically by Xcode SPM)
-
-## License
-
-MIT
+```
+app/
+  _layout.tsx      Root layout (gesture handler + navigation)
+  index.tsx        Library screen
+  reader.tsx       Full-screen reader
+src/
+  models/
+    ComicBook.ts   Data model
+  services/
+    CBZService.ts  ZIP/CBZ extraction via JSZip
+    LibraryManager.ts  Import, persist, delete, progress
+  components/
+    ComicCell.tsx      Library grid cell
+    ZoomableImage.tsx  Pinch/double-tap zoomable image
+```
