@@ -1,0 +1,16 @@
+# Xcode derived data & build output
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+
+# Swift Package Manager
+.build/
+*.resolved
+
+# macOS
+.DS_Store
+
+# CocoaPods (not used here, but just in case)
+Pods/
+Podfile.lock
