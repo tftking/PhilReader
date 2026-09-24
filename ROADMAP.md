@@ -25,7 +25,7 @@ ship on their own; ✅ = done, 🚧 = in progress.
 - ✅ Live Text: select, copy and translate text on pages
 - ✅ Keyboard page turns (arrows, space, shift-space, escape)
 - ✅ Page turns: slide, fade or none (swipe or tap in every mode)
-- Later: zoom in vertical scroll mode
+- ✅ Zoom in vertical scroll mode: pinch or double-tap, drag sideways while zoomed
 
 ## Phase 3 — Formats ✅
 - ✅ PDF (PDFKit), rendered at the size needed so pages stay sharp; title and author as metadata

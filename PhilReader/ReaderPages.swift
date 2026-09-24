@@ -189,6 +189,10 @@ struct VerticalReader: View {
     let end: EndOfComicCard
 
     @State private var isJumping = false
+    @State private var scale: CGFloat = 1
+    @State private var baseScale: CGFloat = 1
+    @State private var pan: CGFloat = 0
+    @State private var basePan: CGFloat = 0
 
     var body: some View {
         GeometryReader { outer in
@@ -222,8 +226,54 @@ struct VerticalReader: View {
                     withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo(currentIndex, anchor: .top) }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { isJumping = false }
                 }
-                .onTapGesture { onTap() }
             }
+            // Zoom scales the whole strip (so pages stay lazily loaded) and pans it sideways.
+            .scaleEffect(scale)
+            .offset(x: pan)
+            .frame(width: outer.size.width, height: outer.size.height)
+            .clipped()
+            .contentShape(Rectangle())
+            .simultaneousGesture(
+                MagnificationGesture()
+                    .onChanged { value in
+                        scale = VerticalZoom.clampedScale(baseScale * value)
+                        pan = VerticalZoom.clampedPan(basePan, scale: scale, width: outer.size.width)
+                    }
+                    .onEnded { _ in
+                        if scale < 1.05 { resetZoom() } else {
+                            baseScale = scale
+                            basePan = pan
+                        }
+                    }
+            )
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 8)
+                    .onChanged { drag in
+                        guard scale > 1 else { return }
+                        pan = VerticalZoom.clampedPan(basePan + drag.translation.width, scale: scale, width: outer.size.width)
+                    }
+                    .onEnded { _ in basePan = pan }
+            )
+            .onTapGesture(count: 2) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                    if scale > 1 {
+                        resetZoom()
+                    } else {
+                        scale = VerticalZoom.doubleTapScale
+                        baseScale = scale
+                    }
+                }
+            }
+            .onTapGesture { onTap() }
+        }
+    }
+
+    private func resetZoom() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+            scale = 1
+            baseScale = 1
+            pan = 0
+            basePan = 0
         }
     }
 
