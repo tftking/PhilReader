@@ -40,8 +40,9 @@ final class LibraryManager: ObservableObject {
         do {
             try FileManager.default.copyItem(at: sourceURL, to: destURL)
             let count = try await service.pageCount(in: destURL)
+            let metadata = await service.metadata(in: destURL)
             let title = sourceURL.deletingPathExtension().lastPathComponent
-            let comic = ComicBook(title: title, fileName: destName, pageCount: count)
+            let comic = ComicBook(title: title, fileName: destName, pageCount: count, metadata: metadata)
             comics.insert(comic, at: 0)
             saveLibrary()
         } catch {
@@ -53,8 +54,42 @@ final class LibraryManager: ObservableObject {
     // MARK: - Progress
 
     func updateProgress(for id: UUID, page: Int) {
-        guard let idx = comics.firstIndex(where: { $0.id == id }) else { return }
-        comics[idx].currentPage = page
+        update(id) { comic in
+            comic.currentPage = page
+            if comic.pageCount > 0 && page >= comic.pageCount - 1 { comic.isFinished = true }
+        }
+    }
+
+    func markOpened(_ id: UUID) {
+        update(id) { $0.lastOpened = Date() }
+    }
+
+    func markFinished(_ id: UUID) {
+        update(id) { comic in
+            comic.isFinished = true
+            comic.lastOpened = comic.lastOpened ?? Date()
+        }
+    }
+
+    func markUnread(_ id: UUID) {
+        update(id) { comic in
+            comic.isFinished = false
+            comic.currentPage = 0
+            comic.lastOpened = nil
+        }
+    }
+
+    /// Reading again from the start keeps the comic's history but clears "finished".
+    func restart(_ id: UUID) {
+        update(id) { comic in
+            comic.isFinished = false
+            comic.currentPage = 0
+        }
+    }
+
+    private func update(_ id: UUID, _ change: (inout ComicBook) -> Void) {
+        guard let index = comics.firstIndex(where: { $0.id == id }) else { return }
+        change(&comics[index])
         saveLibrary()
     }
 
@@ -70,13 +105,34 @@ final class LibraryManager: ObservableObject {
         saveLibrary()
     }
 
+    func delete(_ comic: ComicBook) {
+        guard let index = comics.firstIndex(where: { $0.id == comic.id }) else { return }
+        delete(at: IndexSet(integer: index))
+    }
+
+    func comic(withID id: UUID) -> ComicBook? {
+        comics.first { $0.id == id }
+    }
+
     #if DEBUG
-    /// Imports the comic named by `-demoComic` from Documents, once.
-    func importDemoComicIfNeeded() async {
-        guard let name = DemoLaunch.comicFileName else { return }
-        let title = (name as NSString).deletingPathExtension
-        guard !comics.contains(where: { $0.title == title }) else { return }
-        await importComic(from: documentsURL.appendingPathComponent(name))
+    /// Imports demo comics from Documents and applies demo reading progress.
+    func prepareDemoLibrary() async {
+        guard DemoLaunch.importsLibrary else { return }
+        let ownFiles = Set(comics.map(\.fileName))
+        let files = (try? FileManager.default.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil)) ?? []
+        for file in files.sorted(by: { $0.lastPathComponent < $1.lastPathComponent })
+        where file.pathExtension == "cbz" && !ownFiles.contains(file.lastPathComponent) {
+            let title = file.deletingPathExtension().lastPathComponent
+            if !comics.contains(where: { $0.title == title }) { await importComic(from: file) }
+        }
+        for (offset, entry) in DemoLaunch.progress.enumerated() {
+            guard let comic = comics.first(where: { $0.title == entry.title }) else { continue }
+            update(comic.id) { comic in
+                comic.currentPage = max(entry.page - 1, 0)
+                comic.isFinished = entry.page >= comic.pageCount
+                comic.lastOpened = Date().addingTimeInterval(-3600 * Double(offset + 1))
+            }
+        }
     }
     #endif
 

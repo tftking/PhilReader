@@ -19,6 +19,17 @@ actor CBZService {
         return Self.sortedImageEntries(in: archive).count
     }
 
+    /// Parsed `ComicInfo.xml`, if the archive has one.
+    func metadata(in url: URL) -> ComicMetadata? {
+        guard let archive = Archive(url: url, accessMode: .read),
+              let entry = archive.first(where: {
+                  $0.type == .file && ($0.path as NSString).lastPathComponent.lowercased() == "comicinfo.xml"
+              }) else { return nil }
+        var buffer = Data()
+        guard (try? archive.extract(entry, consumer: { buffer.append($0) })) != nil else { return nil }
+        return ComicInfoParser.parse(buffer)
+    }
+
     private static let imageExtensions: Set<String> = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "tiff"]
 
     /// Image entries in reading order: natural filename sort, skipping macOS metadata.

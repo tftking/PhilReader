@@ -76,7 +76,7 @@ struct ReaderView: View {
     private var openingView: some View {
         VStack(spacing: 16) {
             ProgressView().controlSize(.large).tint(.white)
-            Text("Opening \(comic.title)…")
+            Text("Opening \(comic.displayTitle)…")
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.7))
         }
@@ -119,7 +119,7 @@ struct ReaderView: View {
             ChromeButton(systemImage: "chevron.backward", label: "Back") { close() }
 
             VStack(spacing: 2) {
-                Text(comic.title)
+                Text(comic.displayTitle)
                     .font(.headline)
                     .lineLimit(1)
                 if model.pageCount > 0 {
@@ -206,6 +206,7 @@ struct ReaderView: View {
     // MARK: - Actions
 
     private func openComic() async {
+        library.markOpened(comic.id)
         await model.open()
         guard model.phase == .ready else { return }
         currentIndex = min(max(currentIndex, 0), model.pageCount - 1)

@@ -51,11 +51,16 @@ jobs:
         env:
           UDID: ${{ steps.sim.outputs.udid }}
           BUNDLE_ID: com.philreader.app
-          COMIC: Sample Manga.cbz
         run: |
           set -euo pipefail
-          mkdir -p screenshots
-          swift Scripts/make-sample-cbz.swift "screenshots/$COMIC"
+          mkdir -p screenshots/comics
+          swiftc -O Scripts/make-sample-cbz.swift -o "$RUNNER_TEMP/make-sample-cbz"
+          sample() { "$RUNNER_TEMP/make-sample-cbz" "screenshots/comics/$1.cbz" "${@:2}"; }
+          sample "Starfall 1" --series Starfall --number 1 --title "First Light" --hue 0.60 --pages 12
+          sample "Starfall 2" --series Starfall --number 2 --title "Dark Water" --hue 0.52 --pages 10
+          sample "Midnight Ramen 1" --series "Midnight Ramen" --number 1 --title "Open Late" --hue 0.07 --pages 12
+          sample "Paper Tigers 1" --series "Paper Tigers" --number 1 --title "Crease" --hue 0.97 --pages 8
+          sample "Moonlit 1" --series Moonlit --number 1 --title "Tides" --hue 0.78 --pages 9
 
           xcrun simctl boot "$UDID" 2>/dev/null || true
           xcrun simctl bootstatus "$UDID" -b
@@ -65,19 +70,21 @@ jobs:
 
           DATA=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
           mkdir -p "$DATA/Documents"
-          cp "screenshots/$COMIC" "$DATA/Documents/"
+          cp screenshots/comics/*.cbz "$DATA/Documents/"
 
+          PROGRESS="Starfall 2=4;Midnight Ramen 1=7;Starfall 1=12"
           shoot() {
             local name=$1; shift
             xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
-            xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoComic "$COMIC" "$@"
+            xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoLibrary YES -demoProgress "$PROGRESS" "$@"
             sleep 8
             xcrun simctl io "$UDID" screenshot "screenshots/$name.png"
           }
           shoot 1-library
-          shoot 2-reader-cover -demoOpenReader YES -demoPage 1 -demoChrome visible
-          shoot 3-reader-controls -demoOpenReader YES -demoPage 3 -demoChrome visible
-          shoot 4-reader-page -demoOpenReader YES -demoPage 4 -demoChrome hidden
+          shoot 2-details -demoInfo "Starfall 2"
+          shoot 3-reader-cover -demoOpen "Midnight Ramen 1" -demoPage 1 -demoChrome visible
+          shoot 4-reader-controls -demoOpen "Starfall 2" -demoPage 4 -demoChrome visible
+          shoot 5-reader-page -demoOpen "Starfall 2" -demoPage 5 -demoChrome hidden
 
       - name: Upload screenshots
         if: always()

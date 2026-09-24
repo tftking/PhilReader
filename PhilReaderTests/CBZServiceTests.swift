@@ -91,6 +91,17 @@ final class CBZServiceTests: XCTestCase {
         XCTAssertEqual(cover.map { String(decoding: $0, as: UTF8.self) }, "first")
     }
 
+    func testReadsComicInfoMetadata() async throws {
+        let xml = "<ComicInfo><Series>Starfall</Series><Number>1</Number></ComicInfo>"
+        let url = try makeCBZ([("ComicInfo.xml", Data(xml.utf8)), ("001.png", Data("page".utf8))])
+        let metadata = await CBZService.shared.metadata(in: url)
+        XCTAssertEqual(metadata?.series, "Starfall")
+        XCTAssertEqual(metadata?.number, "1")
+
+        let count = try await CBZService.shared.pageCount(in: url)
+        XCTAssertEqual(count, 1, "ComicInfo.xml must not count as a page")
+    }
+
     func testInvalidArchiveThrows() async throws {
         let url = tempDir.appendingPathComponent("broken.cbz")
         try Data("not a zip".utf8).write(to: url)
