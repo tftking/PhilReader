@@ -30,6 +30,7 @@
 		22222222222222222222227F /* ReaderPages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111117F /* ReaderPages.swift */; };
 		222222222222222222222280 /* PageBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111180 /* PageBrowserView.swift */; };
 		222222222222222222222281 /* ReaderSettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111181 /* ReaderSettingsSheet.swift */; };
+		222222222222222222222282 /* ReaderLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111182 /* ReaderLayout.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,6 +69,7 @@
 		11111111111111111111117F /* ReaderPages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderPages.swift; sourceTree = "<group>"; };
 		111111111111111111111180 /* PageBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageBrowserView.swift; sourceTree = "<group>"; };
 		111111111111111111111181 /* ReaderSettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderSettingsSheet.swift; sourceTree = "<group>"; };
+		111111111111111111111182 /* ReaderLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderLayout.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -119,6 +121,7 @@
 				11111111111111111111117F /* ReaderPages.swift */,
 				111111111111111111111180 /* PageBrowserView.swift */,
 				111111111111111111111181 /* ReaderSettingsSheet.swift */,
+				111111111111111111111182 /* ReaderLayout.swift */,
 				111111111111111111111101 /* Info.plist */,
 				111111111111111111111102 /* Assets.xcassets */,
 			);
@@ -259,6 +262,7 @@
 				22222222222222222222227F /* ReaderPages.swift in Sources */,
 				222222222222222222222280 /* PageBrowserView.swift in Sources */,
 				222222222222222222222281 /* ReaderSettingsSheet.swift in Sources */,
+				222222222222222222222282 /* ReaderLayout.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

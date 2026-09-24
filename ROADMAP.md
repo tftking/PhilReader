@@ -13,19 +13,18 @@ ship on their own; ✅ = done, 🚧 = in progress.
 - ✅ Comic detail sheet with cover, metadata, summary and Read / Continue button
 - ✅ `ComicInfo.xml` metadata: series, number, volume, writer, artist, publisher, year, summary, manga direction
 
-## Phase 2 — Reader modes and controls 🚧
-- 🚧 Reading modes: horizontal paged and continuous vertical scroll (webtoon)
-- 🚧 Page thumbnail grid for quick navigation
-- 🚧 Bookmarks
-- 🚧 Per-comic direction and mode, auto right-to-left from metadata
-- 🚧 End-of-comic card with "Read Next" for the next issue in a series
-- 🚧 Reader background colour (black / dark grey / white)
-- 🚧 Live Text: select, copy and translate text on pages
-- 🚧 Keyboard page turns (arrows, space, shift-space, escape)
-- Double-page spreads on iPad / landscape, with wide-page detection
-- Fit modes: fit screen, fit width, fit height
-- Page transitions: slide, fade, none
-- Zoom in vertical scroll mode
+## Phase 2 — Reader modes and controls ✅
+- ✅ Reading modes: horizontal paged and continuous vertical scroll (webtoon)
+- ✅ Two-page spreads in landscape, with the cover and wide pages on their own
+- ✅ Fit modes: fit screen, fit width, fit height
+- ✅ Page thumbnail grid for quick navigation
+- ✅ Bookmarks
+- ✅ Per-comic direction and mode, auto right-to-left from metadata
+- ✅ End-of-comic card with "Read Next" for the next issue in a series
+- ✅ Reader background colour (black / dark grey / white)
+- ✅ Live Text: select, copy and translate text on pages
+- ✅ Keyboard page turns (arrows, space, shift-space, escape)
+- Later: fade / no-animation page transitions, zoom in vertical scroll mode
 
 ## Phase 3 — Formats
 - PDF (PDFKit)

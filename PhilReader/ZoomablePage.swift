@@ -6,6 +6,7 @@ import VisionKit
 /// reported with their horizontal position (0 = left edge, 1 = right edge).
 struct ZoomablePage: UIViewRepresentable {
     let image: UIImage
+    var fit: PageFit = .screen
     /// Lets people long-press to select, copy and translate text on the page.
     var liveText = false
     var onTap: (CGFloat) -> Void = { _ in }
@@ -16,6 +17,7 @@ struct ZoomablePage: UIViewRepresentable {
 
     func updateUIView(_ view: ZoomingPageView, context: Context) {
         view.image = image
+        view.fit = fit
         view.liveTextEnabled = liveText
         view.onTap = onTap
     }
@@ -29,6 +31,15 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
             guard image !== oldValue else { return }
             imageView.image = image
             analyzeForLiveText()
+            setZoomScale(minimumZoomScale, animated: false)
+            lastLayoutSize = .zero
+            setNeedsLayout()
+        }
+    }
+
+    var fit: PageFit = .screen {
+        didSet {
+            guard fit != oldValue else { return }
             setZoomScale(minimumZoomScale, animated: false)
             lastLayoutSize = .zero
             setNeedsLayout()
@@ -88,6 +99,8 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
         imageView.frame = CGRect(origin: .zero, size: fitted)
         contentSize = fitted
         centerContent()
+        // Start at the top-left when the page overflows the screen (fit width / height).
+        contentOffset = CGPoint(x: -contentInset.left, y: -contentInset.top)
     }
 
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
@@ -119,7 +132,12 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
     private func fittedImageSize() -> CGSize {
         guard let size = image?.size, size.width > 0, size.height > 0,
               bounds.width > 0, bounds.height > 0 else { return bounds.size }
-        let scale = min(bounds.width / size.width, bounds.height / size.height)
+        let scale: CGFloat
+        switch fit {
+        case .screen: scale = min(bounds.width / size.width, bounds.height / size.height)
+        case .width: scale = bounds.width / size.width
+        case .height: scale = bounds.height / size.height
+        }
         return CGSize(width: size.width * scale, height: size.height * scale)
     }
 

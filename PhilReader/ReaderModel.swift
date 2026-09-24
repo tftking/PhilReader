@@ -67,6 +67,11 @@ final class ReaderModel: ObservableObject {
         aspectRatios[index]
     }
 
+    /// Pages already known to be landscape (usually pre-joined double-page spreads).
+    func isWidePage(_ index: Int) -> Bool {
+        (aspectRatios[index] ?? 0) > 1
+    }
+
     func image(at index: Int) async -> UIImage? {
         if let image = cachedImage(at: index) { return image }
         if let task = inFlight[index] { return await task.value }

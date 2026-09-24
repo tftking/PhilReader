@@ -2,52 +2,69 @@ import SwiftUI
 
 // MARK: - Paged
 
-/// One page at a time, swiped horizontally. The last "page" is the end card.
+/// One page or two-page spread at a time, swiped horizontally. The final
+/// group is the end card.
 struct PagedReader: View {
     @ObservedObject var model: ReaderModel
     @Binding var currentIndex: Int
+    /// Page groups in reading order: single pages or spreads, then `[pageCount]` for the end card.
+    let groups: [[Int]]
     let isRightToLeft: Bool
+    let fit: PageFit
     let liveText: Bool
     let onTap: (CGFloat) -> Void
     let end: EndOfComicCard
 
-    /// Pages in on-screen order. For right-to-left reading the order is
+    /// Groups in on-screen order. For right-to-left reading the order is
     /// reversed, so swiping right moves forward like a printed manga.
-    private var displayOrder: [Int] {
-        let indices = Array(0...model.pageCount)
-        return isRightToLeft ? indices.reversed() : indices
+    private var displayGroups: [[Int]] {
+        isRightToLeft ? groups.reversed() : groups
+    }
+
+    /// Selection is the first page of the visible group.
+    private var selection: Binding<Int> {
+        Binding(
+            get: { groups.first(where: { $0.contains(currentIndex) })?.first ?? currentIndex },
+            set: { currentIndex = $0 }
+        )
     }
 
     var body: some View {
-        TabView(selection: $currentIndex) {
-            ForEach(displayOrder, id: \.self) { index in
+        TabView(selection: selection) {
+            ForEach(displayGroups, id: \.self) { group in
                 Group {
-                    if index == model.pageCount {
+                    if group == [model.pageCount] {
                         end
+                    } else if group.count == 2 {
+                        // A spread is drawn left to right, so manga puts the later page on the left.
+                        SpreadView(pages: isRightToLeft ? group.reversed() : group, model: model,
+                                   fit: fit, liveText: liveText, onTap: onTap)
                     } else {
-                        PageView(index: index, model: model, liveText: liveText, onTap: onTap)
+                        PageView(index: group[0], model: model, fit: fit, liveText: liveText, onTap: onTap)
                     }
                 }
-                .tag(index)
+                .tag(group[0])
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
-        .id(isRightToLeft)
+        .id("\(isRightToLeft)-\(groups.count)")
     }
 }
 
 private struct PageView: View {
     let index: Int
     let model: ReaderModel
+    let fit: PageFit
     let liveText: Bool
     let onTap: (CGFloat) -> Void
 
     @State private var image: UIImage?
     @State private var failed = false
 
-    init(index: Int, model: ReaderModel, liveText: Bool, onTap: @escaping (CGFloat) -> Void) {
+    init(index: Int, model: ReaderModel, fit: PageFit, liveText: Bool, onTap: @escaping (CGFloat) -> Void) {
         self.index = index
         self.model = model
+        self.fit = fit
         self.liveText = liveText
         self.onTap = onTap
         _image = State(initialValue: model.cachedImage(at: index))
@@ -56,16 +73,10 @@ private struct PageView: View {
     var body: some View {
         ZStack {
             if let image {
-                ZoomablePage(image: image, liveText: liveText, onTap: onTap)
+                ZoomablePage(image: image, fit: fit, liveText: liveText, onTap: onTap)
                     .transition(.opacity)
             } else {
-                GeometryReader { proxy in
-                    PagePlaceholder(number: index + 1, failed: failed)
-                        .contentShape(Rectangle())
-                        .gesture(SpatialTapGesture().onEnded { tap in
-                            onTap(tap.location.x / max(proxy.size.width, 1))
-                        })
-                }
+                TappablePlaceholder(number: index + 1, failed: failed, onTap: onTap)
             }
         }
         .environment(\.layoutDirection, .leftToRight)
@@ -76,6 +87,62 @@ private struct PageView: View {
                 image = loaded
                 failed = loaded == nil
             }
+        }
+    }
+}
+
+/// Two pages side by side, joined into one image so they zoom together.
+private struct SpreadView: View {
+    /// Page indices in on-screen, left-to-right order.
+    let pages: [Int]
+    let model: ReaderModel
+    let fit: PageFit
+    let liveText: Bool
+    let onTap: (CGFloat) -> Void
+
+    @State private var image: UIImage?
+    @State private var failed = false
+
+    var body: some View {
+        ZStack {
+            if let image {
+                ZoomablePage(image: image, fit: fit, liveText: liveText, onTap: onTap)
+                    .transition(.opacity)
+            } else {
+                TappablePlaceholder(number: (pages.min() ?? 0) + 1, failed: failed, onTap: onTap)
+            }
+        }
+        .environment(\.layoutDirection, .leftToRight)
+        .task(id: pages) {
+            async let leftPage = model.image(at: pages[0])
+            async let rightPage = model.image(at: pages[1])
+            let (left, right) = await (leftPage, rightPage)
+            let joined: UIImage?
+            if let left, let right {
+                joined = SpreadLayout.composite(left: left, right: right)
+            } else {
+                joined = left ?? right
+            }
+            withAnimation(.easeOut(duration: 0.25)) {
+                image = joined
+                failed = joined == nil
+            }
+        }
+    }
+}
+
+private struct TappablePlaceholder: View {
+    let number: Int
+    let failed: Bool
+    let onTap: (CGFloat) -> Void
+
+    var body: some View {
+        GeometryReader { proxy in
+            PagePlaceholder(number: number, failed: failed)
+                .contentShape(Rectangle())
+                .gesture(SpatialTapGesture().onEnded { tap in
+                    onTap(tap.location.x / max(proxy.size.width, 1))
+                })
         }
     }
 }

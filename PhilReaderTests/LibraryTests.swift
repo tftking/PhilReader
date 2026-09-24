@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 @testable import PhilReader
 
@@ -155,5 +156,34 @@ final class ComicBookCodingTests: XCTestCase {
                                  metadata: ComicMetadata(series: "Starfall", volume: 2)).displayTitle,
                        "Starfall Vol. 2")
         XCTAssertEqual(ComicBook(title: "file", fileName: "f").displayTitle, "file")
+    }
+}
+
+final class SpreadLayoutTests: XCTestCase {
+    func testCoverStandsAloneAndPagesPairUp() {
+        XCTAssertEqual(SpreadLayout.spreads(pageCount: 7, isWide: { _ in false }),
+                       [[0], [1, 2], [3, 4], [5, 6]])
+        XCTAssertEqual(SpreadLayout.spreads(pageCount: 6, isWide: { _ in false }),
+                       [[0], [1, 2], [3, 4], [5]])
+        XCTAssertEqual(SpreadLayout.spreads(pageCount: 1, isWide: { _ in false }), [[0]])
+        XCTAssertEqual(SpreadLayout.spreads(pageCount: 0, isWide: { _ in false }), [])
+    }
+
+    func testWidePagesStandAloneAndRestartPairing() {
+        XCTAssertEqual(SpreadLayout.spreads(pageCount: 8, isWide: { $0 == 3 }),
+                       [[0], [1, 2], [3], [4, 5], [6, 7]])
+        XCTAssertEqual(SpreadLayout.spreads(pageCount: 6, isWide: { $0 == 2 }),
+                       [[0], [1], [2], [3, 4], [5]])
+    }
+
+    func testCompositeJoinsPagesAtSharedHeight() {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let page = UIGraphicsImageRenderer(size: CGSize(width: 100, height: 150), format: format).image { _ in }
+        let tall = UIGraphicsImageRenderer(size: CGSize(width: 200, height: 300), format: format).image { _ in }
+        let spread = SpreadLayout.composite(left: page, right: tall)
+        XCTAssertEqual(spread.size.height, 300)
+        XCTAssertEqual(spread.size.width, 400)
+        XCTAssertEqual(SpreadLayout.composite(left: tall, right: tall, maxHeight: 150).size, CGSize(width: 200, height: 150))
     }
 }

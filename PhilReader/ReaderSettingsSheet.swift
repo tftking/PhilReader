@@ -4,6 +4,8 @@ import VisionKit
 struct ReaderSettingsSheet: View {
     @Binding var mode: ReadingMode
     @Binding var isRightToLeft: Bool
+    @Binding var fit: PageFit
+    @Binding var spreadsInLandscape: Bool
     @Binding var background: ReaderBackground
     @Binding var tapToTurn: Bool
     @Binding var liveText: Bool
@@ -31,6 +33,20 @@ struct ReaderSettingsSheet: View {
                     Text(mode == .paged
                          ? "Right to left is the traditional layout for manga. New comics use your latest choice unless their metadata says otherwise."
                          : "Vertical scroll shows pages as one continuous strip, ideal for webtoons.")
+                }
+
+                if mode == .paged {
+                    Section {
+                        Picker("Fit", selection: $fit) {
+                            ForEach(PageFit.allCases) { Text($0.label).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                        Toggle("Two-Page Spreads in Landscape", isOn: $spreadsInLandscape)
+                    } header: {
+                        Text("Page Layout")
+                    } footer: {
+                        Text("Fit Width fills the screen edge to edge; scroll down to see the rest of the page. Spreads show facing pages side by side, with the cover and wide pages on their own.")
+                    }
                 }
 
                 Section("Background") {

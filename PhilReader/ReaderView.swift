@@ -12,6 +12,8 @@ struct ReaderView: View {
     @AppStorage("reader.background") private var background: ReaderBackground = .black
     @AppStorage("reader.tapToTurn") private var tapToTurn = true
     @AppStorage("reader.liveText") private var liveText = true
+    @AppStorage("reader.fit") private var fit: PageFit = .screen
+    @AppStorage("reader.spreads") private var spreadsInLandscape = true
 
     /// Zero-based page; `pageCount` means the end-of-comic card.
     @State private var currentIndex: Int
@@ -21,6 +23,7 @@ struct ReaderView: View {
     @State private var showSettings = false
     @State private var showPages = false
     @State private var hideTask: Task<Void, Never>?
+    @State private var containerSize: CGSize = .zero
 
     init(comic: ComicBook, fileURL: URL, openNext: @escaping (ComicBook) -> Void = { _ in }) {
         self.comic = comic
@@ -41,6 +44,17 @@ struct ReaderView: View {
     private var pageIndex: Int { min(currentIndex, max(model.pageCount - 1, 0)) }
     private var isAtEnd: Bool { model.pageCount > 0 && currentIndex >= model.pageCount }
     private var isBookmarked: Bool { liveComic.bookmarks.contains(pageIndex) }
+    private var showsSpreads: Bool {
+        mode == .paged && spreadsInLandscape && containerSize.width > containerSize.height
+    }
+
+    /// Page groups in reading order (single pages or spreads), then the end card.
+    private var groups: [[Int]] {
+        let pages = showsSpreads
+            ? SpreadLayout.spreads(pageCount: model.pageCount, isWide: model.isWidePage)
+            : (0..<model.pageCount).map { [$0] }
+        return pages + [[model.pageCount]]
+    }
 
     var body: some View {
         ZStack {
@@ -55,6 +69,11 @@ struct ReaderView: View {
                 pages
                     .ignoresSafeArea()
                     .environment(\.colorScheme, background.colorScheme)
+                    .background(GeometryReader { proxy in
+                        Color.clear
+                            .onAppear { containerSize = proxy.size }
+                            .onChange(of: proxy.size) { containerSize = $0 }
+                    })
             }
 
             chrome
@@ -74,7 +93,8 @@ struct ReaderView: View {
         }
         .onDisappear { library.updateProgress(for: comic.id, page: pageIndex) }
         .sheet(isPresented: $showSettings, onDismiss: scheduleHide) {
-            ReaderSettingsSheet(mode: modeBinding, isRightToLeft: directionBinding, background: $background,
+            ReaderSettingsSheet(mode: modeBinding, isRightToLeft: directionBinding, fit: $fit,
+                                spreadsInLandscape: $spreadsInLandscape, background: $background,
                                 tapToTurn: $tapToTurn, liveText: $liveText)
                 .presentationDetents([.medium, .large])
         }
@@ -98,8 +118,8 @@ struct ReaderView: View {
                                  close: close)
         switch mode {
         case .paged:
-            PagedReader(model: model, currentIndex: $currentIndex, isRightToLeft: isRightToLeft,
-                        liveText: liveText, onTap: handleTap(atFraction:), end: end)
+            PagedReader(model: model, currentIndex: $currentIndex, groups: groups, isRightToLeft: isRightToLeft,
+                        fit: fit, liveText: liveText, onTap: handleTap(atFraction:), end: end)
         case .vertical:
             VerticalReader(model: model, currentIndex: $currentIndex, jumpToken: jumpToken,
                            onTap: { setChrome(visible: !showChrome) }, end: end)
@@ -332,11 +352,19 @@ struct ReaderView: View {
         step(forward ? 1 : -1)
     }
 
-    /// Moves by `delta` pages, including onto the end-of-comic card.
+    /// Moves by `delta` pages (or spreads), including onto the end-of-comic card.
     private func step(_ delta: Int) {
-        let target = currentIndex + delta
-        guard (0...model.pageCount).contains(target), model.phase == .ready else { return }
-        jump(to: target, animated: true)
+        guard model.phase == .ready else { return }
+        if mode == .paged {
+            let groups = groups
+            guard let current = groups.firstIndex(where: { $0.contains(currentIndex) }),
+                  groups.indices.contains(current + delta) else { return }
+            jump(to: groups[current + delta][0], animated: true)
+        } else {
+            let target = currentIndex + delta
+            guard (0...model.pageCount).contains(target) else { return }
+            jump(to: target, animated: true)
+        }
     }
 
     private func jump(to index: Int, animated: Bool) {
