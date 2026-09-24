@@ -23,7 +23,7 @@ struct LibraryView: View {
     @State private var isDropTargeted = false
 
     private static let importableTypes: [UTType] =
-        ["cbz", "cbr", "cb7", "rar", "7z"].compactMap { UTType(filenameExtension: $0) } + [.zip, .pdf, .folder]
+        ["cbz", "cbr", "cb7", "rar", "7z"].compactMap { UTType(filenameExtension: $0) } + [.zip, .pdf, .epub, .folder]
 
     private var query: LibraryQuery { LibraryQuery(search: search, sort: sort, filter: filter) }
     private var visibleComics: [ComicBook] { query.apply(to: library.comics) }
@@ -207,7 +207,7 @@ struct LibraryView: View {
                 .foregroundStyle(.tint)
             Text("Your Library Is Empty")
                 .font(.title2.bold())
-            Text("Import comics (.cbz, .cbr, .cb7, .pdf or a folder\nof images) from Files, or open one from another app.")
+            Text("Import comics (.cbz, .cbr, .cb7, .pdf, .epub or a\nfolder of images) from Files, or open one from another app.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

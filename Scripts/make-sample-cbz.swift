@@ -4,7 +4,7 @@
 //     swift Scripts/make-sample-cbz.swift "Starfall 1.cbz" \
 //         --series Starfall --number 1 --title "First Light" --hue 0.6 --pages 12
 //
-// Add `--format cb7`, `--format pdf` or `--format folder` for other formats.
+// Add `--format cb7`, `--format epub`, `--format pdf` or `--format folder` for other formats.
 //
 // Requires macOS (uses AppKit for drawing and /usr/bin/zip for packaging).
 import AppKit
@@ -22,7 +22,7 @@ let storyTitle = options["title"] ?? "A Sample Manga"
 let hue = CGFloat(Double(options["hue"] ?? "") ?? 0.98)
 let pageCount = Int(options["pages"] ?? "") ?? 12
 let writer = options["writer"] ?? "PhilReader Studio"
-/// "cbz" (default), "cb7", "pdf" or "folder".
+/// "cbz" (default), "cb7", "epub", "pdf" or "folder".
 let outputFormat = options["format"] ?? "cbz"
 let pageSize = CGSize(width: 1200, height: 1800)
 let ink = NSColor(white: 0.08, alpha: 1)
@@ -183,6 +183,57 @@ case "pdf":
     }
     pdf.closePDF()
     try? FileManager.default.removeItem(at: workDir)
+case "epub":
+    // A fixed-layout EPUB: one XHTML page per image, in spine order.
+    let fm = FileManager.default
+    let oebps = workDir.appendingPathComponent("OEBPS/images", isDirectory: true)
+    try fm.createDirectory(at: oebps, withIntermediateDirectories: true)
+    try fm.createDirectory(at: workDir.appendingPathComponent("META-INF"), withIntermediateDirectories: true)
+    let images = files.filter { $0.hasSuffix(".jpg") }
+    for name in images { try fm.moveItem(at: workDir.appendingPathComponent(name), to: oebps.appendingPathComponent(name)) }
+    try "application/epub+zip".write(to: workDir.appendingPathComponent("mimetype"), atomically: true, encoding: .utf8)
+    try """
+    <?xml version="1.0"?>
+    <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+      <rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>
+    </container>
+    """.write(to: workDir.appendingPathComponent("META-INF/container.xml"), atomically: true, encoding: .utf8)
+    var manifest = "", spine = ""
+    for (index, name) in images.enumerated() {
+        let page = "page-\(index + 1).xhtml"
+        try """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <html xmlns="http://www.w3.org/1999/xhtml"><head><meta name="viewport" content="width=1200, height=1800"/></head>
+        <body><img src="images/\(name)" alt="Page \(index + 1)"/></body></html>
+        """.write(to: workDir.appendingPathComponent("OEBPS/\(page)"), atomically: true, encoding: .utf8)
+        manifest += "<item id=\"p\(index)\" href=\"\(page)\" media-type=\"application/xhtml+xml\"/>"
+        manifest += "<item id=\"i\(index)\" href=\"images/\(name)\" media-type=\"image/jpeg\"/>"
+        spine += "<itemref idref=\"p\(index)\"/>"
+    }
+    try """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id">
+      <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+        <dc:identifier id="id">philreader-sample</dc:identifier>
+        <dc:title>\(series) #\(issue): \(storyTitle)</dc:title>
+        <dc:creator>\(writer)</dc:creator>
+        <meta property="rendition:layout">pre-paginated</meta>
+      </metadata>
+      <manifest>\(manifest)</manifest>
+      <spine page-progression-direction="rtl">\(spine)</spine>
+    </package>
+    """.write(to: workDir.appendingPathComponent("OEBPS/content.opf"), atomically: true, encoding: .utf8)
+    // mimetype must come first and be stored uncompressed.
+    for arguments in [["-X", "-0", outputURL.path, "mimetype"], ["-X", "-r", "-0", outputURL.path, "META-INF", "OEBPS"]] {
+        let zip = Process()
+        zip.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
+        zip.currentDirectoryURL = workDir
+        zip.arguments = arguments
+        try zip.run()
+        zip.waitUntilExit()
+        guard zip.terminationStatus == 0 else { fatalError("zip failed with status \(zip.terminationStatus)") }
+    }
+    try? fm.removeItem(at: workDir)
 case "cb7":
     // bsdtar (macOS's tar) can write 7-Zip archives.
     let tar = Process()

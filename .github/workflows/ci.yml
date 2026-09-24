@@ -61,6 +61,7 @@ jobs:
           sample "Midnight Ramen 1.cb7" --series "Midnight Ramen" --number 1 --title "Open Late" --hue 0.07 --pages 12 --format cb7
           sample "Paper Tigers 1.pdf" --series "Paper Tigers" --number 1 --title "Crease" --hue 0.97 --pages 8 --format pdf
           sample "Moonlit 1" --series Moonlit --number 1 --title "Tides" --hue 0.78 --pages 9 --format folder
+          sample "Moonlit 2.epub" --series Moonlit --number 2 --title "Undertow" --hue 0.70 --pages 8 --format epub
           # A folder linked as a library folder, standing in for one in iCloud Drive.
           mkdir -p screenshots/comics/Shelf
           sample "Shelf/Night Market 1.cbz" --series "Night Market" --number 1 --title "Lanterns" --hue 0.13 --pages 8
@@ -100,6 +101,8 @@ jobs:
           shoot 14-select -demoSelect "Starfall 1,Moonlit 1"
           shoot 15-collections-tab -demoTab collections
           shoot 16-settings -demoTab settings
+          shoot 17-guided-view -demoOpen "Starfall 2" -demoMode paged -demoPage 3 -demoChrome visible -reader.guided YES
+          shoot 18-epub -demoOpen "Moonlit 2" -demoMode paged -demoPage 2 -demoChrome visible -reader.guided NO
 
       - name: Upload screenshots
         if: always()

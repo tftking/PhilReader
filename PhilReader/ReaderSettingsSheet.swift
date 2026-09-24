@@ -4,6 +4,8 @@ import VisionKit
 struct ReaderSettingsSheet: View {
     @Binding var mode: ReadingMode
     @Binding var isRightToLeft: Bool
+    @Binding var guidedView: Bool
+    @Binding var transition: PageTransition
     @Binding var fit: PageFit
     @Binding var spreadsInLandscape: Bool
     @Binding var background: ReaderBackground
@@ -41,11 +43,16 @@ struct ReaderSettingsSheet: View {
                             ForEach(PageFit.allCases) { Text($0.label).tag($0) }
                         }
                         .pickerStyle(.segmented)
+                        Picker("Page Turn", selection: $transition) {
+                            ForEach(PageTransition.allCases) { Text($0.label).tag($0) }
+                        }
+                        Toggle("Guided View", isOn: $guidedView)
                         Toggle("Two-Page Spreads in Landscape", isOn: $spreadsInLandscape)
+                            .disabled(guidedView)
                     } header: {
                         Text("Page Layout")
                     } footer: {
-                        Text("Fit Width fills the screen edge to edge; scroll down to see the rest of the page. Spreads show facing pages side by side, with the cover and wide pages on their own.")
+                        Text("Guided View zooms to one panel at a time; tap the edges or use the arrow keys to move between panels. Fit Width fills the screen edge to edge. Spreads show facing pages side by side, with the cover and wide pages on their own.")
                     }
                 }
 

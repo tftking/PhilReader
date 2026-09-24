@@ -11,8 +11,13 @@ struct PagedReader: View {
     let groups: [[Int]]
     let isRightToLeft: Bool
     let fit: PageFit
+    /// Guided view: the panel to zoom to on one page.
+    var focus: (page: Int, rect: CGRect)? = nil
     let liveText: Bool
+    var transition: PageTransition = .slide
     let onTap: (CGFloat) -> Void
+    /// Fade / no-animation modes: a horizontal swipe, `true` when the finger moved left.
+    var onSwipe: (Bool) -> Void = { _ in }
     let end: EndOfComicCard
 
     /// Groups in on-screen order. For right-to-left reading the order is
@@ -30,24 +35,46 @@ struct PagedReader: View {
     }
 
     var body: some View {
-        TabView(selection: selection) {
-            ForEach(displayGroups, id: \.self) { group in
-                Group {
-                    if group == [model.pageCount] {
-                        end
-                    } else if group.count == 2 {
-                        // A spread is drawn left to right, so manga puts the later page on the left.
-                        SpreadView(pages: isRightToLeft ? group.reversed() : group, model: model,
-                                   fit: fit, liveText: liveText, onTap: onTap)
-                    } else {
-                        PageView(index: group[0], model: model, fit: fit, liveText: liveText, onTap: onTap)
-                    }
+        switch transition {
+        case .slide:
+            TabView(selection: selection) {
+                ForEach(displayGroups, id: \.self) { group in
+                    groupView(group).tag(group[0])
                 }
-                .tag(group[0])
             }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .id("\(isRightToLeft)-\(groups.count)")
+        case .fade, .none:
+            // One group at a time; page changes cross-fade (or cut) instead of sliding.
+            let group = groups.first(where: { $0.contains(currentIndex) }) ?? [currentIndex]
+            ZStack {
+                groupView(group)
+                    .id(group)
+                    .transition(transition == .fade ? .opacity : .identity)
+            }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 30).onEnded { drag in
+                    let dx = drag.translation.width
+                    guard abs(dx) > 60, abs(dx) > abs(drag.translation.height) * 1.5 else { return }
+                    onSwipe(dx < 0)
+                }
+            )
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        .id("\(isRightToLeft)-\(groups.count)")
+    }
+
+    @ViewBuilder
+    private func groupView(_ group: [Int]) -> some View {
+        if group == [model.pageCount] {
+            end
+        } else if group.count == 2 {
+            // A spread is drawn left to right, so manga puts the later page on the left.
+            SpreadView(pages: isRightToLeft ? group.reversed() : group, model: model,
+                       fit: fit, liveText: liveText, onTap: onTap)
+        } else {
+            PageView(index: group[0], model: model, fit: fit,
+                     focusRect: focus?.page == group[0] ? focus?.rect : nil,
+                     liveText: liveText, onTap: onTap)
+        }
     }
 }
 
@@ -55,16 +82,19 @@ private struct PageView: View {
     let index: Int
     let model: ReaderModel
     let fit: PageFit
+    let focusRect: CGRect?
     let liveText: Bool
     let onTap: (CGFloat) -> Void
 
     @State private var image: UIImage?
     @State private var failed = false
 
-    init(index: Int, model: ReaderModel, fit: PageFit, liveText: Bool, onTap: @escaping (CGFloat) -> Void) {
+    init(index: Int, model: ReaderModel, fit: PageFit, focusRect: CGRect?, liveText: Bool,
+         onTap: @escaping (CGFloat) -> Void) {
         self.index = index
         self.model = model
         self.fit = fit
+        self.focusRect = focusRect
         self.liveText = liveText
         self.onTap = onTap
         _image = State(initialValue: model.cachedImage(at: index))
@@ -73,7 +103,7 @@ private struct PageView: View {
     var body: some View {
         ZStack {
             if let image {
-                ZoomablePage(image: image, fit: fit, liveText: liveText, onTap: onTap)
+                ZoomablePage(image: image, fit: fit, focusRect: focusRect, liveText: liveText, onTap: onTap)
                     .transition(.opacity)
             } else {
                 TappablePlaceholder(number: index + 1, failed: failed, onTap: onTap)

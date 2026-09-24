@@ -14,6 +14,8 @@ struct ReaderView: View {
     @AppStorage("reader.liveText") private var liveText = true
     @AppStorage("reader.fit") private var fit: PageFit = .screen
     @AppStorage("reader.spreads") private var spreadsInLandscape = true
+    @AppStorage("reader.guided") private var guidedView = false
+    @AppStorage("reader.transition") private var transition: PageTransition = .slide
 
     /// Zero-based page; `pageCount` means the end-of-comic card.
     @State private var currentIndex: Int
@@ -24,6 +26,12 @@ struct ReaderView: View {
     @State private var showPages = false
     @State private var hideTask: Task<Void, Never>?
     @State private var containerSize: CGSize = .zero
+    /// Guided view: detected panels for `panelsPage`, and which one is shown.
+    @State private var panels: [CGRect] = []
+    @State private var panelsPage = -1
+    @State private var panelIndex = 0
+    /// Panel to show after a guided step moves to another page (`Int.max` = last).
+    @State private var pendingPanelIndex: Int?
 
     init(comic: ComicBook, fileURL: URL, openNext: @escaping (ComicBook) -> Void = { _ in }) {
         self.comic = comic
@@ -44,8 +52,15 @@ struct ReaderView: View {
     private var pageIndex: Int { min(currentIndex, max(model.pageCount - 1, 0)) }
     private var isAtEnd: Bool { model.pageCount > 0 && currentIndex >= model.pageCount }
     private var isBookmarked: Bool { liveComic.bookmarks.contains(pageIndex) }
+    private var isGuided: Bool { guidedView && mode == .paged }
     private var showsSpreads: Bool {
-        mode == .paged && spreadsInLandscape && containerSize.width > containerSize.height
+        mode == .paged && !isGuided && spreadsInLandscape && containerSize.width > containerSize.height
+    }
+
+    /// The panel guided view is zoomed to on the current page, if known.
+    private var focus: (page: Int, rect: CGRect)? {
+        guard isGuided, panelsPage == currentIndex, !panels.isEmpty else { return nil }
+        return (currentIndex, panels[min(panelIndex, panels.count - 1)])
     }
 
     /// Page groups in reading order (single pages or spreads), then the end card.
@@ -82,7 +97,10 @@ struct ReaderView: View {
         .statusBarHidden(!showChrome)
         .persistentSystemOverlays(showChrome ? .automatic : .hidden)
         .task { await openComic() }
+        .task(id: "\(currentIndex)-\(isGuided)-\(isRightToLeft)-\(model.pageCount)") { await loadPanels() }
         .onChange(of: currentIndex) { index in
+            panelIndex = pendingPanelIndex ?? 0
+            pendingPanelIndex = nil
             library.updateProgress(for: comic.id, page: index)
             guard !isScrubbing else { return }
             model.prefetch(around: index)
@@ -93,7 +111,8 @@ struct ReaderView: View {
         }
         .onDisappear { library.updateProgress(for: comic.id, page: pageIndex) }
         .sheet(isPresented: $showSettings, onDismiss: scheduleHide) {
-            ReaderSettingsSheet(mode: modeBinding, isRightToLeft: directionBinding, fit: $fit,
+            ReaderSettingsSheet(mode: modeBinding, isRightToLeft: directionBinding, guidedView: $guidedView,
+                                transition: $transition, fit: $fit,
                                 spreadsInLandscape: $spreadsInLandscape, background: $background,
                                 tapToTurn: $tapToTurn, liveText: $liveText)
                 .presentationDetents([.medium, .large])
@@ -119,7 +138,9 @@ struct ReaderView: View {
         switch mode {
         case .paged:
             PagedReader(model: model, currentIndex: $currentIndex, groups: groups, isRightToLeft: isRightToLeft,
-                        fit: fit, liveText: liveText, onTap: handleTap(atFraction:), end: end)
+                        fit: fit, focus: focus, liveText: liveText, transition: transition,
+                        onTap: handleTap(atFraction:),
+                        onSwipe: { fingerMovedLeft in turnPage(towardLeft: !fingerMovedLeft) }, end: end)
         case .vertical:
             VerticalReader(model: model, currentIndex: $currentIndex, jumpToken: jumpToken,
                            onTap: { setChrome(visible: !showChrome) }, end: end)
@@ -176,7 +197,7 @@ struct ReaderView: View {
                     .font(.headline)
                     .lineLimit(1)
                 if model.pageCount > 0 {
-                    Text(isAtEnd ? "Finished" : "Page \(pageIndex + 1) of \(model.pageCount)")
+                    Text(isAtEnd ? "Finished" : pageDescription)
                         .font(.caption)
                         .monospacedDigit()
                         .foregroundStyle(.white.opacity(0.7))
@@ -233,6 +254,13 @@ struct ReaderView: View {
                 ChromeButton(systemImage: "square.grid.2x2", label: "All Pages", size: 36) {
                     hideTask?.cancel()
                     showPages = true
+                }
+                if mode == .paged {
+                    ChromeButton(systemImage: "viewfinder", label: isGuided ? "Turn Off Guided View" : "Guided View",
+                                 tint: isGuided ? .accentColor : .white, size: 36) {
+                        withAnimation(.easeInOut(duration: 0.25)) { guidedView.toggle() }
+                        scheduleHide()
+                    }
                 }
                 Label(modeDescription, systemImage: modeIcon)
                     .font(.caption)
@@ -336,6 +364,42 @@ struct ReaderView: View {
         scheduleHide()
     }
 
+    private var pageDescription: String {
+        let page = "Page \(pageIndex + 1) of \(model.pageCount)"
+        guard focus != nil, panels.count > 1 else { return page }
+        return "\(page) · Panel \(min(panelIndex, panels.count - 1) + 1) of \(panels.count)"
+    }
+
+    private func loadPanels() async {
+        guard isGuided, model.phase == .ready, currentIndex < model.pageCount else {
+            panels = []
+            panelsPage = -1
+            return
+        }
+        let page = currentIndex
+        let found = await model.panels(at: page, rightToLeft: isRightToLeft)
+        guard page == currentIndex else { return }
+        panels = found
+        panelsPage = page
+        if panelIndex == .max { panelIndex = max(found.count - 1, 0) }
+    }
+
+    /// Guided view: the next or previous panel, moving to the neighbouring
+    /// page (at its first or last panel) past either end.
+    private func stepPanel(_ delta: Int) {
+        let target = panelIndex + delta
+        if panelsPage == currentIndex, panels.indices.contains(target) {
+            panelIndex = target
+            return
+        }
+        pendingPanelIndex = delta > 0 ? 0 : .max
+        step(delta)
+        if pendingPanelIndex != nil && currentIndex == panelsPage {
+            // Couldn't move (first or last page).
+            pendingPanelIndex = nil
+        }
+    }
+
     private func handleTap(atFraction x: CGFloat) {
         guard tapToTurn else { return setChrome(visible: !showChrome) }
         if x < 0.3 {
@@ -350,7 +414,11 @@ struct ReaderView: View {
     private func turnPage(towardLeft: Bool) {
         // The left edge goes back in left-to-right reading and forward in manga.
         let forward = mode == .paged && isRightToLeft ? towardLeft : !towardLeft
-        step(forward ? 1 : -1)
+        if isGuided && currentIndex < model.pageCount {
+            stepPanel(forward ? 1 : -1)
+        } else {
+            step(forward ? 1 : -1)
+        }
     }
 
     /// Moves by `delta` pages (or spreads), including onto the end-of-comic card.
@@ -369,8 +437,8 @@ struct ReaderView: View {
     }
 
     private func jump(to index: Int, animated: Bool) {
-        if animated && mode == .paged {
-            withAnimation(.easeInOut(duration: 0.25)) { currentIndex = index }
+        if animated && mode == .paged && transition != .none {
+            withAnimation(.easeInOut(duration: transition == .fade ? 0.2 : 0.25)) { currentIndex = index }
         } else {
             currentIndex = index
         }

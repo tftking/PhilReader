@@ -44,6 +44,10 @@
 		22222222222222222222228A /* LinkedFolders.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111118A /* LinkedFolders.swift */; };
 		22222222222222222222228B /* AppLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111118B /* AppLock.swift */; };
 		22222222222222222222228C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111118C /* SettingsView.swift */; };
+		22222222222222222222228D /* PanelDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111118D /* PanelDetector.swift */; };
+		22222222222222222222228E /* EPUBDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111118E /* EPUBDocument.swift */; };
+		666666666666666666666619 /* TestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666666666666620 /* TestSupport.swift */; };
+		666666666666666666666621 /* ReaderFeatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666666666666622 /* ReaderFeatureTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -94,6 +98,10 @@
 		11111111111111111111118A /* LinkedFolders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkedFolders.swift; sourceTree = "<group>"; };
 		11111111111111111111118B /* AppLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLock.swift; sourceTree = "<group>"; };
 		11111111111111111111118C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		11111111111111111111118D /* PanelDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelDetector.swift; sourceTree = "<group>"; };
+		11111111111111111111118E /* EPUBDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPUBDocument.swift; sourceTree = "<group>"; };
+		666666666666666666666620 /* TestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestSupport.swift; sourceTree = "<group>"; };
+		666666666666666666666622 /* ReaderFeatureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderFeatureTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -138,6 +146,8 @@
 				111111111111111111111100 /* LibraryManager.swift */,
 				111111111111111111111177 /* CBZDocument.swift */,
 				111111111111111111111183 /* ComicSource.swift */,
+				11111111111111111111118D /* PanelDetector.swift */,
+				11111111111111111111118E /* EPUBDocument.swift */,
 				111111111111111111111184 /* ExtractedArchive.swift */,
 				111111111111111111111185 /* SevenZipExtractor.swift */,
 				111111111111111111111186 /* RarExtractor.swift */,
@@ -180,6 +190,8 @@
 				666666666666666666666604 /* ComicBookTests.swift */,
 				666666666666666666666616 /* LibraryTests.swift */,
 				666666666666666666666618 /* FormatTests.swift */,
+				666666666666666666666620 /* TestSupport.swift */,
+				666666666666666666666622 /* ReaderFeatureTests.swift */,
 			);
 			path = PhilReaderTests;
 			sourceTree = "<group>";
@@ -294,6 +306,8 @@
 				222222222222222222222200 /* LibraryManager.swift in Sources */,
 				222222222222222222222277 /* CBZDocument.swift in Sources */,
 				222222222222222222222283 /* ComicSource.swift in Sources */,
+				22222222222222222222228D /* PanelDetector.swift in Sources */,
+				22222222222222222222228E /* EPUBDocument.swift in Sources */,
 				222222222222222222222284 /* ExtractedArchive.swift in Sources */,
 				222222222222222222222285 /* SevenZipExtractor.swift in Sources */,
 				222222222222222222222286 /* RarExtractor.swift in Sources */,
@@ -325,6 +339,8 @@
 				666666666666666666666603 /* ComicBookTests.swift in Sources */,
 				666666666666666666666615 /* LibraryTests.swift in Sources */,
 				666666666666666666666617 /* FormatTests.swift in Sources */,
+				666666666666666666666619 /* TestSupport.swift in Sources */,
+				666666666666666666666621 /* ReaderFeatureTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

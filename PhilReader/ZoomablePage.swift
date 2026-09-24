@@ -7,6 +7,8 @@ import VisionKit
 struct ZoomablePage: UIViewRepresentable {
     let image: UIImage
     var fit: PageFit = .screen
+    /// Guided view: the panel to zoom to, normalised to the image (origin top-left).
+    var focusRect: CGRect? = nil
     /// Lets people long-press to select, copy and translate text on the page.
     var liveText = false
     var onTap: (CGFloat) -> Void = { _ in }
@@ -18,6 +20,7 @@ struct ZoomablePage: UIViewRepresentable {
     func updateUIView(_ view: ZoomingPageView, context: Context) {
         view.image = image
         view.fit = fit
+        view.focusRect = focusRect
         view.liveTextEnabled = liveText
         view.onTap = onTap
     }
@@ -46,6 +49,13 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
         }
     }
 
+    var focusRect: CGRect? {
+        didSet {
+            guard focusRect != oldValue else { return }
+            applyFocus(animated: true)
+        }
+    }
+
     var liveTextEnabled = false {
         didSet {
             guard liveTextEnabled != oldValue else { return }
@@ -70,7 +80,7 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
         delegate = self
         backgroundColor = .clear
         minimumZoomScale = 1
-        maximumZoomScale = 4
+        maximumZoomScale = 8
         bouncesZoom = true
         decelerationRate = .fast
         showsVerticalScrollIndicator = false
@@ -101,6 +111,22 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
         centerContent()
         // Start at the top-left when the page overflows the screen (fit width / height).
         contentOffset = CGPoint(x: -contentInset.left, y: -contentInset.top)
+        applyFocus(animated: false)
+    }
+
+    /// Zooms to the guided-view panel, or back out to the whole page.
+    private func applyFocus(animated: Bool) {
+        let size = imageView.bounds.size
+        guard bounds.width > 0, size.width > 0, size.height > 0 else { return }
+        guard let focus = focusRect, focus != CGRect(x: 0, y: 0, width: 1, height: 1) else {
+            if zoomScale != minimumZoomScale { setZoomScale(minimumZoomScale, animated: animated) }
+            return
+        }
+        // A little breathing room around the panel.
+        let rect = CGRect(x: focus.minX * size.width, y: focus.minY * size.height,
+                          width: focus.width * size.width, height: focus.height * size.height)
+            .insetBy(dx: -size.width * 0.015, dy: -size.height * 0.015)
+        zoom(to: rect, animated: animated)
     }
 
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }

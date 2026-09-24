@@ -15,6 +15,14 @@ enum PageFit: String, CaseIterable, Identifiable {
     }
 }
 
+/// How paged mode moves between pages.
+enum PageTransition: String, CaseIterable, Identifiable {
+    case slide, fade, none
+
+    var id: Self { self }
+    var label: String { rawValue.capitalized }
+}
+
 enum SpreadLayout {
     /// Groups pages into two-page spreads like a printed book: the cover and
     /// any wide (already double-page) scans stand alone, everything else pairs up.
