@@ -1,5 +1,5 @@
 import Foundation
-import ZipFoundation
+import ZIPFoundation
 
 actor CBZService {
     static let shared = CBZService()

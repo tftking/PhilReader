@@ -15,7 +15,20 @@
 		2222222222222222222222FF /* CBZService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1111111111111111111111FF /* CBZService.swift */; };
 		222222222222222222222200 /* LibraryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111100 /* LibraryManager.swift */; };
 		222222222222222222222201 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111102 /* Assets.xcassets */; };
+		222222222222222222222202 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 5555555555555555555555BB /* ZIPFoundation */; };
+		666666666666666666666601 /* CBZServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666666666666602 /* CBZServiceTests.swift */; };
+		666666666666666666666603 /* ComicBookTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666666666666604 /* ComicBookTests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		666666666666666666666605 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AAAAAAAAAAAAAAAAAAAAAAAA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FFFFFFFFFFFFFFFFFFFFFFFF;
+			remoteInfo = PhilReader;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		EEEEEEEEEEEEEEEEEEEEEEEE /* PhilReader.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PhilReader.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -28,10 +41,21 @@
 		111111111111111111111100 /* LibraryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryManager.swift; sourceTree = "<group>"; };
 		111111111111111111111101 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		111111111111111111111102 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		666666666666666666666606 /* PhilReaderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PhilReaderTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		666666666666666666666602 /* CBZServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CBZServiceTests.swift; sourceTree = "<group>"; };
+		666666666666666666666604 /* ComicBookTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComicBookTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		3333333333333333333333CC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				222222222222222222222202 /* ZIPFoundation in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		666666666666666666666607 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -45,6 +69,7 @@
 			isa = PBXGroup;
 			children = (
 				CCCCCCCCCCCCCCCCCCCCCCCC /* PhilReader */,
+				666666666666666666666608 /* PhilReaderTests */,
 				DDDDDDDDDDDDDDDDDDDDDDDD /* Products */,
 			);
 			sourceTree = "<group>";
@@ -69,8 +94,18 @@
 			isa = PBXGroup;
 			children = (
 				EEEEEEEEEEEEEEEEEEEEEEEE /* PhilReader.app */,
+				666666666666666666666606 /* PhilReaderTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		666666666666666666666608 /* PhilReaderTests */ = {
+			isa = PBXGroup;
+			children = (
+				666666666666666666666602 /* CBZServiceTests.swift */,
+				666666666666666666666604 /* ComicBookTests.swift */,
+			);
+			path = PhilReaderTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -90,11 +125,28 @@
 			);
 			name = PhilReader;
 			packageProductDependencies = (
-				5555555555555555555555BB /* ZipFoundation */,
+				5555555555555555555555BB /* ZIPFoundation */,
 			);
 			productName = PhilReader;
 			productReference = EEEEEEEEEEEEEEEEEEEEEEEE /* PhilReader.app */;
 			productType = "com.apple.product-type.application";
+		};
+		666666666666666666666609 /* PhilReaderTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 666666666666666666666610 /* Build configuration list for PBXNativeTarget "PhilReaderTests" */;
+			buildPhases = (
+				666666666666666666666611 /* Sources */,
+				666666666666666666666607 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				666666666666666666666612 /* PBXTargetDependency */,
+			);
+			name = PhilReaderTests;
+			productName = PhilReaderTests;
+			productReference = 666666666666666666666606 /* PhilReaderTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -109,6 +161,10 @@
 					FFFFFFFFFFFFFFFFFFFFFFFF = {
 						CreatedOnToolsVersion = 15.0;
 					};
+					666666666666666666666609 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = FFFFFFFFFFFFFFFFFFFFFFFF;
+					};
 				};
 			};
 			buildConfigurationList = 4444444444444444444444EE /* Build configuration list for PBXProject "PhilReader" */;
@@ -121,13 +177,14 @@
 			);
 			mainGroup = BBBBBBBBBBBBBBBBBBBBBBBB;
 			packageReferences = (
-				5555555555555555555555AA /* XCRemoteSwiftPackageReference "ZipFoundation" */,
+				5555555555555555555555AA /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 			);
 			productRefGroup = DDDDDDDDDDDDDDDDDDDDDDDD /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				FFFFFFFFFFFFFFFFFFFFFFFF /* PhilReader */,
+				666666666666666666666609 /* PhilReaderTests */,
 			);
 		};
 /* End PBXProject section */
@@ -158,7 +215,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		666666666666666666666611 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				666666666666666666666601 /* CBZServiceTests.swift in Sources */,
+				666666666666666666666603 /* ComicBookTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		666666666666666666666612 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FFFFFFFFFFFFFFFFFFFFFFFF /* PhilReader */;
+			targetProxy = 666666666666666666666605 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		4444444444444444444444AA /* Debug */ = {
@@ -256,6 +330,42 @@
 			};
 			name = Release;
 		};
+		666666666666666666666613 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.philreader.appTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PhilReader.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PhilReader";
+			};
+			name = Debug;
+		};
+		666666666666666666666614 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.philreader.appTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PhilReader.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PhilReader";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -277,12 +387,21 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		666666666666666666666610 /* Build configuration list for PBXNativeTarget "PhilReaderTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				666666666666666666666613 /* Debug */,
+				666666666666666666666614 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		5555555555555555555555AA /* XCRemoteSwiftPackageReference "ZipFoundation" */ = {
+		5555555555555555555555AA /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/weichsel/ZipFoundation.git";
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation.git";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 0.9.0;
@@ -291,10 +410,10 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		5555555555555555555555BB /* ZipFoundation */ = {
+		5555555555555555555555BB /* ZIPFoundation */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 5555555555555555555555AA /* XCRemoteSwiftPackageReference "ZipFoundation" */;
-			productName = ZipFoundation;
+			package = 5555555555555555555555AA /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
 		};
 /* End XCSwiftPackageProductDependency section */
 
