@@ -76,8 +76,10 @@ struct ContentView: View {
         }
         #if DEBUG
         .onAppear {
-            if DemoLaunch.collectionName != nil { tab = .collections }
-            if let demoTab = DemoLaunch.tab { tab = demoTab }
+            // Each demo launch picks its tab; the saved tab would otherwise carry over between shots.
+            if DemoLaunch.importsLibrary {
+                tab = DemoLaunch.tab ?? (DemoLaunch.collectionName != nil ? .collections : .library)
+            }
         }
         #endif
     }
@@ -146,7 +148,7 @@ struct CollectionsTab: View {
                 .font(.system(size: 52))
                 .foregroundStyle(.tint)
             Text("No Collections Yet")
-                .font(.title2.bold())
+                .font(.system(.title2, design: .rounded).bold())
             Text("Group comics however you like: favourites,\na reading list, a publisher, a story arc.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

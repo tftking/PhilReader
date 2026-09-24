@@ -206,7 +206,7 @@ struct LibraryView: View {
                 .font(.system(size: 56))
                 .foregroundStyle(.tint)
             Text("Your Library Is Empty")
-                .font(.title2.bold())
+                .font(.system(.title2, design: .rounded).bold())
             Text("Import comics (.cbz, .cbr, .cb7, .pdf, .epub or a\nfolder of images) from Files, or open one from another app.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -290,7 +290,7 @@ private struct JumpBackInCard: View {
                         .tracking(1.4)
                         .foregroundStyle(.white.opacity(0.7))
                     Text(comic.displayTitle)
-                        .font(.title3.bold())
+                        .font(.system(.title3, design: .rounded).bold())
                         .foregroundStyle(.white)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
@@ -346,7 +346,7 @@ private struct ContinueReadingShelf: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Also Reading")
-                .font(.title3.bold())
+                .font(.system(.title3, design: .rounded).bold())
                 .padding(.horizontal, 20)
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -366,18 +366,18 @@ private struct ContinueReadingShelf: View {
     private func card(_ comic: ComicBook) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             ComicCoverView(comic: comic)
-                .frame(width: 132)
+                .frame(width: 96)
             Text(comic.displayTitle)
-                .font(.subheadline.weight(.semibold))
+                .font(.footnote.weight(.semibold))
                 .lineLimit(1)
             ProgressView(value: comic.progress)
                 .tint(.accentColor)
             Text("Page \(comic.currentPage + 1) of \(comic.pageCount)")
-                .font(.caption)
+                .font(.caption2)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
         }
-        .frame(width: 132)
+        .frame(width: 96)
         .foregroundStyle(.primary)
     }
 }

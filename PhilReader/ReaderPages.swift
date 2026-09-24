@@ -188,7 +188,9 @@ struct VerticalReader: View {
     let onTap: () -> Void
     let end: EndOfComicCard
 
-    @State private var isJumping = false
+    /// True until the opening scroll to the saved page has landed, and during
+    /// programmatic jumps, so the scroll tracker doesn't overwrite the page.
+    @State private var isJumping = true
     @State private var scale: CGFloat = 1
     @State private var baseScale: CGFloat = 1
     @State private var pan: CGFloat = 0
@@ -219,7 +221,15 @@ struct VerticalReader: View {
                     if visible != currentIndex { currentIndex = visible }
                 }
                 .onAppear {
-                    DispatchQueue.main.async { proxy.scrollTo(currentIndex, anchor: .top) }
+                    let target = currentIndex
+                    DispatchQueue.main.async {
+                        proxy.scrollTo(target, anchor: .top)
+                        // Lazy pages above may resize as they load; land once more, then start tracking.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            proxy.scrollTo(target, anchor: .top)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { isJumping = false }
+                        }
+                    }
                 }
                 .onChange(of: jumpToken) { _ in
                     isJumping = true
@@ -382,7 +392,7 @@ struct EndOfComicCard: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Text(comic.displayTitle)
-                    .font(.title2.bold())
+                    .font(.system(.title2, design: .rounded).bold())
                     .multilineTextAlignment(.center)
             }
 

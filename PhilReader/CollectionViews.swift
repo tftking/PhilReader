@@ -257,7 +257,7 @@ struct CollectionView: View {
                         .foregroundStyle(.white)
                 }
             VStack(alignment: .leading, spacing: 2) {
-                Text(collection.name).font(.title2.bold())
+                Text(collection.name).font(.system(.title2, design: .rounded).bold())
                 Text("\(count) \(count == 1 ? "comic" : "comics")")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -462,7 +462,7 @@ struct SeriesView: View {
                             .shadow(color: .black.opacity(0.3), radius: 10, y: 6)
                     }
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(name).font(.title2.bold())
+                        Text(name).font(.system(.title2, design: .rounded).bold())
                         Text("\(issues.count) issues · \(issues.filter { $0.status == .finished }.count) read")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)

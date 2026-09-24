@@ -24,7 +24,7 @@ struct SettingsView: View {
                     HStack(spacing: 16) {
                         AppGlyph(size: 62)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text("PhilReader").font(.title3.bold())
+                            Text("PhilReader").font(.system(.title3, design: .rounded).bold())
                             Text("\(library.comics.count) comics · \(library.collections.count) collections")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
@@ -166,6 +166,7 @@ struct SettingsView: View {
         let count = library.comicCount(in: folder)
         let comics = "\(count) \(count == 1 ? "comic" : "comics")"
         guard let scanned = folder.lastScanned else { return comics }
+        guard Date().timeIntervalSince(scanned) >= 60 else { return "\(comics) · Updated just now" }
         let ago = RelativeDateTimeFormatter().localizedString(for: scanned, relativeTo: Date())
         return "\(comics) · Updated \(ago)"
     }

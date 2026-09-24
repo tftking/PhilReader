@@ -31,7 +31,7 @@ struct ComicDetailView: View {
 
                 VStack(spacing: 6) {
                     Text(comic.displayTitle)
-                        .font(.title2.bold())
+                        .font(.system(.title2, design: .rounded).bold())
                         .multilineTextAlignment(.center)
                     if let subtitle = comic.subtitle {
                         Text(subtitle)
@@ -130,7 +130,7 @@ struct ComicDetailView: View {
 
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title).font(.title3.bold())
+            Text(title).font(.system(.title3, design: .rounded).bold())
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
