@@ -164,11 +164,13 @@ private struct HeroCard: View {
                     .overlay {
                         if let cover {
                             // Pinned to the top so the cover's title stays in view.
-                            Image(uiImage: cover)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                                .transition(.opacity)
+                            GeometryReader { proxy in
+                                Image(uiImage: cover)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+                            }
+                            .transition(.opacity)
                         }
                     }
                     .overlay(alignment: .bottomLeading) {
