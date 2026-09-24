@@ -56,6 +56,8 @@ enum DemoLaunch {
     }
     /// Links this folder inside Documents as a library folder (standing in for iCloud Drive).
     static var linkedFolderName: String? { defaults.string(forKey: "demoLinkFolder") }
+    /// Shows the reader's page scrubbing preview.
+    static var scrubs: Bool { defaults.bool(forKey: "demoScrub") }
     /// Starts on the end-of-comic card.
     static var showsEnd: Bool { defaults.bool(forKey: "demoEnd") }
 }

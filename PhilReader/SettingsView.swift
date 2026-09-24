@@ -121,6 +121,7 @@ struct ReadersSettingsView: View {
     @AppStorage("reader.guided") private var guidedView = false
     @AppStorage("reader.transition") private var transition: PageTransition = .slide
     @AppStorage("reader.keepAwake") private var keepAwake = true
+    @AppStorage("reader.showTime") private var showsReadingTime = true
 
     var body: some View {
         Form {
@@ -131,6 +132,9 @@ struct ReadersSettingsView: View {
                 }
                 Toggle(isOn: $keepAwake) {
                     SettingsLabel("Keep Display On While Reading", systemImage: "sun.max")
+                }
+                Toggle(isOn: $showsReadingTime) {
+                    SettingsLabel("Show Reading Time", systemImage: "clock")
                 }
                 Toggle(isOn: $tapToTurn) {
                     SettingsLabel("Tap Edges to Turn Pages", systemImage: "hand.tap")
