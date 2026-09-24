@@ -29,8 +29,8 @@ final class LibraryManager: ObservableObject {
         defer { if accessed { sourceURL.stopAccessingSecurityScopedResource() } }
 
         let ext = sourceURL.pathExtension.lowercased()
-        guard ext == "cbz" || ext == "cbr" else {
-            importError = "Only .cbz files are supported."
+        guard ext == "cbz" || ext == "zip" else {
+            importError = "Only .cbz and .zip files are supported."
             return
         }
 
