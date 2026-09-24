@@ -15,7 +15,7 @@
 		2222222222222222222222FF /* CBZService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1111111111111111111111FF /* CBZService.swift */; };
 		222222222222222222222200 /* LibraryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111100 /* LibraryManager.swift */; };
 		222222222222222222222201 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111102 /* Assets.xcassets */; };
-		222222222222222222222202 /* ZipFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 5555555555555555555555BB /* ZipFoundation */; };
+		222222222222222222222202 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 5555555555555555555555BB /* ZIPFoundation */; };
 		666666666666666666666601 /* CBZServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666666666666602 /* CBZServiceTests.swift */; };
 		666666666666666666666603 /* ComicBookTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666666666666604 /* ComicBookTests.swift */; };
 /* End PBXBuildFile section */
@@ -51,7 +51,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				222222222222222222222202 /* ZipFoundation in Frameworks */,
+				222222222222222222222202 /* ZIPFoundation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -125,7 +125,7 @@
 			);
 			name = PhilReader;
 			packageProductDependencies = (
-				5555555555555555555555BB /* ZipFoundation */,
+				5555555555555555555555BB /* ZIPFoundation */,
 			);
 			productName = PhilReader;
 			productReference = EEEEEEEEEEEEEEEEEEEEEEEE /* PhilReader.app */;
@@ -177,7 +177,7 @@
 			);
 			mainGroup = BBBBBBBBBBBBBBBBBBBBBBBB;
 			packageReferences = (
-				5555555555555555555555AA /* XCRemoteSwiftPackageReference "ZipFoundation" */,
+				5555555555555555555555AA /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 			);
 			productRefGroup = DDDDDDDDDDDDDDDDDDDDDDDD /* Products */;
 			projectDirPath = "";
@@ -399,9 +399,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		5555555555555555555555AA /* XCRemoteSwiftPackageReference "ZipFoundation" */ = {
+		5555555555555555555555AA /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/weichsel/ZipFoundation.git";
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation.git";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 0.9.0;
@@ -410,10 +410,10 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		5555555555555555555555BB /* ZipFoundation */ = {
+		5555555555555555555555BB /* ZIPFoundation */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 5555555555555555555555AA /* XCRemoteSwiftPackageReference "ZipFoundation" */;
-			productName = ZipFoundation;
+			package = 5555555555555555555555AA /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
 		};
 /* End XCSwiftPackageProductDependency section */
 
