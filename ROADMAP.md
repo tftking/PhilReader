@@ -33,12 +33,12 @@ ship on their own; ✅ = done, 🚧 = in progress.
 - ✅ CB7 (7-Zip, via SWCompression) and CBR (RAR, via Unrar.swift), unpacked once to a cache
 - Comic EPUB (fixed-layout)
 
-## Phase 4 — Organisation
-- Collections / folders with custom colours and cover images
-- Automatic series grouping from metadata and filenames
-- Multi-select: mark read, move to collection, delete
-- Grid and list layouts; cover size slider
-- Drag and drop import on iPad
+## Phase 4 — Organisation ✅
+- ✅ Collections with custom colours and a chosen cover comic
+- ✅ Automatic series stacks from metadata or file names, with a series page and "Continue" button
+- ✅ Multi-select: mark read / unread, add to collection, delete
+- ✅ Grid and list layouts; small / medium / large covers
+- ✅ Drag and drop import (iPad, Mac)
 
 ## Phase 5 — Sources
 - OPDS client: browse, search, stream and download

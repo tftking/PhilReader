@@ -74,7 +74,7 @@ struct ComicDetailView: View {
             ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    ComicActions(comic: comic, open: read)
+                    ComicActions(comic: comic, handlers: ComicActionHandlers(open: read))
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }

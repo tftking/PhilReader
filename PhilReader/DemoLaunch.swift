@@ -33,6 +33,15 @@ enum DemoLaunch {
     static var mode: ReadingMode? { defaults.string(forKey: "demoMode").flatMap { ReadingMode(rawValue: $0) } }
     /// Opens a reader sheet: "pages" or "settings".
     static var sheet: String? { defaults.string(forKey: "demoSheet") }
+    /// Creates two sample collections if there are none.
+    static var createsCollections: Bool { defaults.bool(forKey: "demoCollections") }
+    /// Opens the named collection (or `-demoSeries` series) from the library.
+    static var collectionName: String? { defaults.string(forKey: "demoCollection") }
+    static var seriesName: String? { defaults.string(forKey: "demoSeries") }
+    /// Starts the library in selection mode with these comics (by title, comma-separated) selected.
+    static var selectedTitles: [String] {
+        (defaults.string(forKey: "demoSelect") ?? "").split(separator: ",").map(String.init)
+    }
     /// Starts on the end-of-comic card.
     static var showsEnd: Bool { defaults.bool(forKey: "demoEnd") }
 }

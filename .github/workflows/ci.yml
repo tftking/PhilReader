@@ -76,7 +76,7 @@ jobs:
           shoot() {
             local name=$1; shift
             xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
-            xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoLibrary YES -demoProgress "$PROGRESS" "$@"
+            xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoLibrary YES -demoCollections YES -demoProgress "$PROGRESS" "$@"
             sleep 8
             xcrun simctl io "$UDID" screenshot "screenshots/$name.png"
           }
@@ -90,6 +90,10 @@ jobs:
           shoot 8-vertical-scroll -demoOpen "Moonlit 1" -demoMode vertical -demoPage 2 -demoChrome visible
           shoot 9-end-of-comic -demoOpen "Starfall 1" -demoEnd YES -demoChrome hidden
           shoot 10-pdf -demoOpen "Paper Tigers 1" -demoMode paged -demoPage 2 -demoChrome visible
+          shoot 11-collection -demoCollection "Favourites"
+          shoot 12-series -demoSeries "Starfall"
+          shoot 13-list-layout -library.layout list
+          shoot 14-select -demoSelect "Starfall 1,Moonlit 1"
 
       - name: Upload screenshots
         if: always()

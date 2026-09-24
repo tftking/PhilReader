@@ -6,10 +6,12 @@ final class LibraryManager: ObservableObject {
     static let shared = LibraryManager()
 
     @Published var comics: [ComicBook] = []
+    @Published private(set) var collections: [ComicCollection] = []
     @Published var isImporting = false
     @Published var importError: String?
 
     private let storageKey = "philreader.library"
+    private let collectionsKey = "philreader.collections"
 
     private var documentsURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -128,8 +130,61 @@ final class LibraryManager: ObservableObject {
             try? FileManager.default.removeItem(at: coverCacheURL(for: comic.id))
             ExtractedArchive.remove(for: fileURL(for: comic))
         }
+        let removed = Set(offsets.map { comics[$0].id })
         comics.remove(atOffsets: offsets)
         saveLibrary()
+        updateCollections { collections in
+            for index in collections.indices { collections[index].remove(removed) }
+        }
+    }
+
+    func delete(_ ids: Set<UUID>) {
+        delete(at: IndexSet(comics.indices.filter { ids.contains(comics[$0].id) }))
+    }
+
+    func markFinished(_ ids: Set<UUID>) {
+        for id in ids { markFinished(id) }
+    }
+
+    func markUnread(_ ids: Set<UUID>) {
+        for id in ids { markUnread(id) }
+    }
+
+    // MARK: - Collections
+
+    @discardableResult
+    func createCollection(named name: String, color: CollectionColor, comicIDs: [UUID] = []) -> ComicCollection {
+        let collection = ComicCollection(name: name, color: color, comicIDs: comicIDs)
+        updateCollections { $0.append(collection) }
+        return collection
+    }
+
+    func updateCollection(_ id: UUID, _ change: (inout ComicCollection) -> Void) {
+        updateCollections { collections in
+            guard let index = collections.firstIndex(where: { $0.id == id }) else { return }
+            change(&collections[index])
+        }
+    }
+
+    func deleteCollection(_ id: UUID) {
+        updateCollections { $0.removeAll { $0.id == id } }
+    }
+
+    func collection(withID id: UUID) -> ComicCollection? {
+        collections.first { $0.id == id }
+    }
+
+    /// Comics in a collection, in collection order.
+    func comics(in collection: ComicCollection) -> [ComicBook] {
+        let byID = Dictionary(uniqueKeysWithValues: comics.map { ($0.id, $0) })
+        return collection.comicIDs.compactMap { byID[$0] }
+    }
+
+    private func updateCollections(_ change: (inout [ComicCollection]) -> Void) {
+        change(&collections)
+        if let data = try? JSONEncoder().encode(collections) {
+            UserDefaults.standard.set(data, forKey: collectionsKey)
+        }
     }
 
     func delete(_ comic: ComicBook) {
@@ -151,6 +206,13 @@ final class LibraryManager: ObservableObject {
             guard let format = ComicFormat(url: file), !ownFiles.contains(file.lastPathComponent) else { continue }
             let title = format == .folder ? file.lastPathComponent : file.deletingPathExtension().lastPathComponent
             if !comics.contains(where: { $0.title == title }) { await importComic(from: file) }
+        }
+        if DemoLaunch.createsCollections && collections.isEmpty {
+            func ids(_ titles: [String]) -> [UUID] {
+                titles.compactMap { title in comics.first { $0.title == title }?.id }
+            }
+            createCollection(named: "Favourites", color: .red, comicIDs: ids(["Starfall 1", "Moonlit 1", "Midnight Ramen 1"]))
+            createCollection(named: "Weekend Reads", color: .indigo, comicIDs: ids(["Paper Tigers 1", "Starfall 2"]))
         }
         for (offset, entry) in DemoLaunch.progress.enumerated() {
             guard let comic = comics.first(where: { $0.title == entry.title }) else { continue }
@@ -195,6 +257,10 @@ final class LibraryManager: ObservableObject {
     }
 
     private func loadLibrary() {
+        if let data = UserDefaults.standard.data(forKey: collectionsKey),
+           let saved = try? JSONDecoder().decode([ComicCollection].self, from: data) {
+            collections = saved
+        }
         guard let data = UserDefaults.standard.data(forKey: storageKey),
               let saved = try? JSONDecoder().decode([ComicBook].self, from: data) else { return }
         comics = saved

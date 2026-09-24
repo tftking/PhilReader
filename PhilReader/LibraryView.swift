@@ -1,28 +1,51 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+enum LibraryRoute: Hashable {
+    case collection(UUID)
+    case series(String)
+}
+
 struct LibraryView: View {
     @EnvironmentObject private var library: LibraryManager
     @AppStorage("library.sort") private var sort: LibrarySort = .recentlyRead
     @AppStorage("library.filter") private var filter: LibraryFilter = .all
+    @AppStorage("library.layout") private var layout: LibraryLayout = .grid
+    @AppStorage("library.coverSize") private var coverSize: CoverSize = .medium
+    @AppStorage("library.groupSeries") private var groupsSeries = true
+
     @State private var search = ""
+    @State private var path = NavigationPath()
     @State private var showingFilePicker = false
     @State private var readingComic: ComicBook?
     @State private var infoComic: ComicBook?
     @State private var pendingRead: ComicBook?
+    @State private var isSelecting = false
+    @State private var selection: Set<UUID> = []
+    @State private var pendingAdd: PendingCollectionAdd?
+    @State private var creatingCollection = false
+    @State private var confirmDelete = false
+    @State private var isDropTargeted = false
 
     private static let importableTypes: [UTType] =
         ["cbz", "cbr", "cb7", "rar", "7z"].compactMap { UTType(filenameExtension: $0) } + [.zip, .pdf, .folder]
 
-    private let columns = [GridItem(.adaptive(minimum: 104, maximum: 170), spacing: 18, alignment: .top)]
-
     private var query: LibraryQuery { LibraryQuery(search: search, sort: sort, filter: filter) }
     private var visibleComics: [ComicBook] { query.apply(to: library.comics) }
+    private var entries: [LibraryEntry] {
+        groupsSeries && search.isEmpty ? LibraryEntry.grouped(visibleComics) : visibleComics.map(LibraryEntry.comic)
+    }
     private var continueReading: [ComicBook] { LibraryQuery.continueReading(library.comics) }
-    private var showsShelf: Bool { search.isEmpty && filter == .all && !continueReading.isEmpty }
+    private var isBrowsing: Bool { search.isEmpty && !isSelecting }
+    private var showsShelf: Bool { isBrowsing && filter == .all && !continueReading.isEmpty }
+
+    private var actions: ComicActionHandlers {
+        ComicActionHandlers(open: open, info: showInfo,
+                            addToCollection: { pendingAdd = PendingCollectionAdd(comicIDs: [$0.id]) })
+    }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 if library.comics.isEmpty {
                     emptyLibrary
@@ -30,9 +53,20 @@ struct LibraryView: View {
                     content
                 }
             }
-            .navigationTitle("Library")
+            .navigationTitle(isSelecting ? "\(selection.count) Selected" : "Library")
             .toolbar { toolbar }
             .overlay { if library.isImporting { ImportingOverlay() } }
+            .overlay { if isDropTargeted { DropTargetOverlay() } }
+            .dropDestination(for: URL.self) { urls, _ in
+                Task { for url in urls { await library.importComic(from: url) } }
+                return !urls.isEmpty
+            } isTargeted: { isDropTargeted = $0 }
+            .navigationDestination(for: LibraryRoute.self) { route in
+                switch route {
+                case .collection(let id): CollectionView(collectionID: id, actions: actions)
+                case .series(let name): SeriesView(name: name, actions: actions)
+                }
+            }
         }
         .fileImporter(
             isPresented: $showingFilePicker,
@@ -50,6 +84,24 @@ struct LibraryView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(library.importError ?? "")
+        }
+        .confirmationDialog("Delete \(selection.count) \(selection.count == 1 ? "Comic" : "Comics")?",
+                            isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                library.delete(selection)
+                setSelecting(false)
+            }
+        } message: {
+            Text("They will be removed from this device.")
+        }
+        .sheet(item: $pendingAdd) { pending in
+            AddToCollectionSheet(comicIDs: pending.comicIDs) { setSelecting(false) }
+        }
+        .sheet(isPresented: $creatingCollection) {
+            CollectionEditor(title: "New Collection") { name, color in
+                let collection = library.createCollection(named: name, color: color)
+                path.append(LibraryRoute.collection(collection.id))
+            }
         }
         .sheet(item: $infoComic, onDismiss: openPendingComic) { comic in
             ComicDetailView(comicID: comic.id) { selected in
@@ -73,23 +125,24 @@ struct LibraryView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
                 if showsShelf {
-                    ContinueReadingShelf(comics: continueReading, open: open, info: showInfo)
+                    ContinueReadingShelf(comics: continueReading, actions: actions)
+                }
+
+                if isBrowsing && filter == .all {
+                    CollectionsShelf(collections: library.collections,
+                                     open: { path.append(LibraryRoute.collection($0.id)) },
+                                     create: { creatingCollection = true })
                 }
 
                 VStack(alignment: .leading, spacing: 16) {
                     FilterBar(selection: $filter, comics: library.comics)
 
-                    if visibleComics.isEmpty {
+                    if entries.isEmpty {
                         noMatches
                     } else {
-                        LazyVGrid(columns: columns, spacing: 26) {
-                            ForEach(visibleComics) { comic in
-                                Button { open(comic) } label: { ComicGridItem(comic: comic) }
-                                    .buttonStyle(CoverButtonStyle())
-                                    .contextMenu { ComicActions(comic: comic, open: open, info: showInfo) }
-                            }
-                        }
-                        .padding(.horizontal, 20)
+                        ComicItemsView(entries: entries, layout: layout, coverSize: coverSize,
+                                       isSelecting: isSelecting, selection: $selection, actions: actions,
+                                       openSeries: { path.append(LibraryRoute.series($0)) })
                     }
                 }
             }
@@ -99,25 +152,81 @@ struct LibraryView: View {
         .searchable(text: $search, prompt: "Titles, series, creators")
         .animation(.default, value: filter)
         .animation(.default, value: sort)
+        .animation(.default, value: layout)
+        .animation(.default, value: groupsSeries)
     }
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .navigationBarTrailing) {
-            if !library.comics.isEmpty {
+        if isSelecting {
+            ToolbarItem(placement: .navigationBarLeading) {
+                let allIDs = Set(visibleComics.map(\.id))
+                Button(selection == allIDs ? "Deselect All" : "Select All") {
+                    selection = selection == allIDs ? [] : allIDs
+                }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") { setSelecting(false) }.bold()
+            }
+            ToolbarItemGroup(placement: .bottomBar) {
                 Menu {
-                    Picker("Sort By", selection: $sort) {
-                        ForEach(LibrarySort.allCases) { Text($0.label).tag($0) }
+                    Button { library.markFinished(selection); setSelecting(false) } label: {
+                        Label("Mark as Read", systemImage: "checkmark.circle")
+                    }
+                    Button { library.markUnread(selection); setSelecting(false) } label: {
+                        Label("Mark as Unread", systemImage: "circle")
                     }
                 } label: {
-                    Image(systemName: "arrow.up.arrow.down")
+                    Label("Mark", systemImage: "checkmark.circle")
                 }
-                .accessibilityLabel("Sort")
+                .disabled(selection.isEmpty)
+                Spacer()
+                Button { pendingAdd = PendingCollectionAdd(comicIDs: Array(selection)) } label: {
+                    Label("Add to Collection", systemImage: "folder.badge.plus")
+                }
+                .disabled(selection.isEmpty)
+                Spacer()
+                Button(role: .destructive) { confirmDelete = true } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+                .tint(.red)
+                .disabled(selection.isEmpty)
             }
-            Button { showingFilePicker = true } label: {
-                Image(systemName: "plus")
+        } else {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                if !library.comics.isEmpty {
+                    Menu {
+                        viewOptions
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .accessibilityLabel("View Options")
+                }
+                Button { showingFilePicker = true } label: {
+                    Image(systemName: "plus")
+                }
+                .accessibilityLabel("Import Comics")
             }
-            .accessibilityLabel("Import Comics")
+        }
+    }
+
+    @ViewBuilder
+    private var viewOptions: some View {
+        Button { setSelecting(true) } label: { Label("Select", systemImage: "checkmark.circle") }
+        Divider()
+        Picker("Layout", selection: $layout) {
+            Label("Grid", systemImage: "square.grid.2x2").tag(LibraryLayout.grid)
+            Label("List", systemImage: "list.bullet").tag(LibraryLayout.list)
+        }
+        if layout == .grid {
+            Picker("Cover Size", selection: $coverSize) {
+                ForEach(CoverSize.allCases) { Text($0.label).tag($0) }
+            }
+        }
+        Toggle(isOn: $groupsSeries) { Label("Group by Series", systemImage: "square.stack") }
+        Divider()
+        Picker("Sort By", selection: $sort) {
+            ForEach(LibrarySort.allCases) { Text($0.label).tag($0) }
         }
     }
 
@@ -177,10 +286,24 @@ struct LibraryView: View {
         open(comic)
     }
 
+    private func setSelecting(_ selecting: Bool) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isSelecting = selecting
+            selection = []
+        }
+    }
+
     #if DEBUG
     private func prepareDemo() async {
         await library.prepareDemoLibrary()
-        if let title = DemoLaunch.openTitle, let comic = library.comics.first(where: { $0.title == title }) {
+        if let name = DemoLaunch.collectionName, let collection = library.collections.first(where: { $0.name == name }) {
+            path.append(LibraryRoute.collection(collection.id))
+        } else if let series = DemoLaunch.seriesName {
+            path.append(LibraryRoute.series(series))
+        } else if !DemoLaunch.selectedTitles.isEmpty {
+            isSelecting = true
+            selection = Set(library.comics.filter { DemoLaunch.selectedTitles.contains($0.title) }.map(\.id))
+        } else if let title = DemoLaunch.openTitle, let comic = library.comics.first(where: { $0.title == title }) {
             if let mode = DemoLaunch.mode { library.setReadingMode(comic.id, mode) }
             if let page = DemoLaunch.page { library.updateProgress(for: comic.id, page: max(page - 1, 0)) }
             readingComic = library.comic(withID: comic.id)
@@ -195,8 +318,7 @@ struct LibraryView: View {
 
 private struct ContinueReadingShelf: View {
     let comics: [ComicBook]
-    let open: (ComicBook) -> Void
-    let info: (ComicBook) -> Void
+    let actions: ComicActionHandlers
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -207,9 +329,9 @@ private struct ContinueReadingShelf: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 16) {
                     ForEach(comics) { comic in
-                        Button { open(comic) } label: { card(comic) }
+                        Button { actions.open(comic) } label: { card(comic) }
                             .buttonStyle(CoverButtonStyle())
-                            .contextMenu { ComicActions(comic: comic, open: open, info: info) }
+                            .contextMenu { ComicActions(comic: comic, handlers: actions) }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -237,75 +359,7 @@ private struct ContinueReadingShelf: View {
     }
 }
 
-// MARK: - Grid
-
-private struct ComicGridItem: View {
-    let comic: ComicBook
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            ComicCoverView(comic: comic)
-                .overlay(alignment: .bottom) {
-                    if comic.status == .inProgress {
-                        ProgressBar(value: comic.progress)
-                            .padding(8)
-                    }
-                }
-                .overlay(alignment: .topTrailing) {
-                    if comic.status == .finished {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 20))
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, Color.accentColor)
-                            .shadow(radius: 2)
-                            .padding(6)
-                    }
-                }
-
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                if comic.status == .unread {
-                    Circle()
-                        .fill(Color.accentColor)
-                        .frame(width: 7, height: 7)
-                        .accessibilityLabel("Unread")
-                }
-                Text(comic.displayTitle)
-                    .font(.footnote.weight(.semibold))
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-            }
-            Text(detail)
-                .font(.caption2)
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-        }
-        .foregroundStyle(.primary)
-    }
-
-    private var detail: String {
-        switch comic.status {
-        case .unread: return "\(comic.pageCount) pages"
-        case .inProgress: return "\(Int((comic.progress * 100).rounded()))% read"
-        case .finished: return "Finished"
-        }
-    }
-}
-
-private struct ProgressBar: View {
-    let value: Double
-
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .leading) {
-                Capsule().fill(.black.opacity(0.45))
-                Capsule().fill(.white)
-                    .frame(width: max(proxy.size.width * value, 4))
-            }
-        }
-        .frame(height: 4)
-        .shadow(color: .black.opacity(0.3), radius: 2)
-    }
-}
+// MARK: - Pieces
 
 private struct FilterBar: View {
     @Binding var selection: LibraryFilter
@@ -337,36 +391,6 @@ private struct FilterBar: View {
     }
 }
 
-// MARK: - Shared pieces
-
-struct ComicActions: View {
-    let comic: ComicBook
-    let open: (ComicBook) -> Void
-    var info: ((ComicBook) -> Void)? = nil
-    @EnvironmentObject private var library: LibraryManager
-
-    var body: some View {
-        Button { open(comic) } label: {
-            switch comic.status {
-            case .unread: Label("Read", systemImage: "book")
-            case .inProgress: Label("Continue Reading", systemImage: "book")
-            case .finished: Label("Read Again", systemImage: "arrow.counterclockwise")
-            }
-        }
-        if let info {
-            Button { info(comic) } label: { Label("Details", systemImage: "info.circle") }
-        }
-        Divider()
-        if comic.status == .finished {
-            Button { library.markUnread(comic.id) } label: { Label("Mark as Unread", systemImage: "circle") }
-        } else {
-            Button { library.markFinished(comic.id) } label: { Label("Mark as Read", systemImage: "checkmark.circle") }
-        }
-        Divider()
-        Button(role: .destructive) { library.delete(comic) } label: { Label("Delete", systemImage: "trash") }
-    }
-}
-
 /// Slight press-down scale, like tapping a book on a shelf.
 struct CoverButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
@@ -387,5 +411,20 @@ private struct ImportingOverlay: View {
             .padding(28)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
+    }
+}
+
+private struct DropTargetOverlay: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 24, style: .continuous)
+            .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 3, dash: [10, 8]))
+            .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay {
+                Label("Drop to Import", systemImage: "square.and.arrow.down")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+            }
+            .padding(12)
+            .allowsHitTesting(false)
     }
 }

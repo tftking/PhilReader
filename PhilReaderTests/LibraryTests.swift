@@ -187,3 +187,69 @@ final class SpreadLayoutTests: XCTestCase {
         XCTAssertEqual(SpreadLayout.composite(left: tall, right: tall, maxHeight: 150).size, CGSize(width: 200, height: 150))
     }
 }
+
+final class OrganizationTests: XCTestCase {
+    private func comic(_ title: String, series: String? = nil, number: String? = nil, finished: Bool = false) -> ComicBook {
+        var comic = ComicBook(title: title, fileName: "\(title).cbz", pageCount: 10,
+                              metadata: series.map { ComicMetadata(series: $0, number: number) })
+        comic.isFinished = finished
+        return comic
+    }
+
+    func testSeriesNameFromFileTitles() {
+        let cases = [
+            "Starfall 01": "Starfall",
+            "Starfall #3": "Starfall",
+            "Starfall v02 (2024)": "Starfall",
+            "Starfall Vol. 2": "Starfall",
+            "Starfall - Chapter 12.5": "Starfall",
+            "Starfall_004 [Scans]": "Starfall",
+            "Midnight Ramen": "Midnight Ramen",
+            "Rev 2": "Rev",
+            "Preview": "Preview",
+            "1984": "1984",
+        ]
+        for (title, expected) in cases {
+            XCTAssertEqual(SeriesGrouping.seriesName(fromFileTitle: title), expected, title)
+        }
+    }
+
+    func testMetadataSeriesWinsOverFileName() {
+        XCTAssertEqual(SeriesGrouping.seriesName(for: comic("random-file", series: "Moonlit")), "Moonlit")
+    }
+
+    func testGroupingStacksSeriesInPlaceAndOrdersIssues() {
+        let comics = [
+            comic("b", series: "Starfall", number: "2"),
+            comic("Midnight Ramen 1"),
+            comic("a", series: "Starfall", number: "1"),
+            comic("Moonlit 1"),
+        ]
+        let entries = LibraryEntry.grouped(comics)
+        XCTAssertEqual(entries.count, 3)
+        guard case .series(let name, let issues) = entries[0] else { return XCTFail("Expected a series stack first") }
+        XCTAssertEqual(name, "Starfall")
+        XCTAssertEqual(issues.map(\.title), ["a", "b"])
+        XCTAssertEqual(entries.dropFirst().map(\.comicIDs.first), [comics[1].id, comics[3].id])
+    }
+
+    func testCollectionAddRemoveAndCover() {
+        let a = UUID(), b = UUID(), c = UUID()
+        var collection = ComicCollection(name: "Favourites", comicIDs: [a])
+        collection.add([b, a, c])
+        XCTAssertEqual(collection.comicIDs, [a, b, c], "No duplicates, insertion order kept")
+        XCTAssertEqual(collection.coverID, a)
+        collection.coverComicID = c
+        XCTAssertEqual(collection.coverID, c)
+        collection.remove([c])
+        XCTAssertEqual(collection.comicIDs, [a, b])
+        XCTAssertNil(collection.coverComicID)
+        XCTAssertEqual(collection.coverID, a)
+    }
+
+    func testCollectionsRoundTripThroughJSON() throws {
+        let collection = ComicCollection(name: "Weekend", color: .indigo, comicIDs: [UUID()])
+        let decoded = try JSONDecoder().decode(ComicCollection.self, from: JSONEncoder().encode(collection))
+        XCTAssertEqual(decoded, collection)
+    }
+}
