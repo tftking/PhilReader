@@ -18,6 +18,10 @@
 		222222222222222222222202 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 5555555555555555555555BB /* ZIPFoundation */; };
 		666666666666666666666601 /* CBZServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666666666666602 /* CBZServiceTests.swift */; };
 		666666666666666666666603 /* ComicBookTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666666666666604 /* ComicBookTests.swift */; };
+		222222222222222222222277 /* CBZDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111177 /* CBZDocument.swift */; };
+		222222222222222222222278 /* ReaderModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111178 /* ReaderModel.swift */; };
+		222222222222222222222279 /* ZoomablePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111179 /* ZoomablePage.swift */; };
+		22222222222222222222227A /* DemoLaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111117A /* DemoLaunch.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,6 +48,10 @@
 		666666666666666666666606 /* PhilReaderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PhilReaderTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		666666666666666666666602 /* CBZServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CBZServiceTests.swift; sourceTree = "<group>"; };
 		666666666666666666666604 /* ComicBookTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComicBookTests.swift; sourceTree = "<group>"; };
+		111111111111111111111177 /* CBZDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CBZDocument.swift; sourceTree = "<group>"; };
+		111111111111111111111178 /* ReaderModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderModel.swift; sourceTree = "<group>"; };
+		111111111111111111111179 /* ZoomablePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomablePage.swift; sourceTree = "<group>"; };
+		11111111111111111111117A /* DemoLaunch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoLaunch.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -84,6 +92,10 @@
 				1111111111111111111111EE /* ComicBook.swift */,
 				1111111111111111111111FF /* CBZService.swift */,
 				111111111111111111111100 /* LibraryManager.swift */,
+				111111111111111111111177 /* CBZDocument.swift */,
+				111111111111111111111178 /* ReaderModel.swift */,
+				111111111111111111111179 /* ZoomablePage.swift */,
+				11111111111111111111117A /* DemoLaunch.swift */,
 				111111111111111111111101 /* Info.plist */,
 				111111111111111111111102 /* Assets.xcassets */,
 			);
@@ -212,6 +224,10 @@
 				2222222222222222222222EE /* ComicBook.swift in Sources */,
 				2222222222222222222222FF /* CBZService.swift in Sources */,
 				222222222222222222222200 /* LibraryManager.swift in Sources */,
+				222222222222222222222277 /* CBZDocument.swift in Sources */,
+				222222222222222222222278 /* ReaderModel.swift in Sources */,
+				222222222222222222222279 /* ZoomablePage.swift in Sources */,
+				22222222222222222222227A /* DemoLaunch.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

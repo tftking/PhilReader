@@ -4,24 +4,9 @@ import ZIPFoundation
 actor CBZService {
     static let shared = CBZService()
 
-    private let imageExtensions: Set<String> = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "tiff"]
-
-    func extractAllPages(from url: URL) throws -> [Data] {
-        guard let archive = Archive(url: url, accessMode: .read) else {
-            throw CBZError.invalidArchive(url)
-        }
-        var pages: [Data] = []
-        for entry in sortedImageEntries(in: archive) {
-            var buffer = Data()
-            _ = try archive.extract(entry) { buffer.append($0) }
-            if !buffer.isEmpty { pages.append(buffer) }
-        }
-        return pages
-    }
-
     func extractCover(from url: URL) throws -> Data? {
         guard let archive = Archive(url: url, accessMode: .read),
-              let entry = sortedImageEntries(in: archive).first else { return nil }
+              let entry = Self.sortedImageEntries(in: archive).first else { return nil }
         var buffer = Data()
         _ = try archive.extract(entry) { buffer.append($0) }
         return buffer.isEmpty ? nil : buffer
@@ -31,10 +16,13 @@ actor CBZService {
         guard let archive = Archive(url: url, accessMode: .read) else {
             throw CBZError.invalidArchive(url)
         }
-        return sortedImageEntries(in: archive).count
+        return Self.sortedImageEntries(in: archive).count
     }
 
-    private func sortedImageEntries(in archive: Archive) -> [Entry] {
+    private static let imageExtensions: Set<String> = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "tiff"]
+
+    /// Image entries in reading order: natural filename sort, skipping macOS metadata.
+    static func sortedImageEntries(in archive: Archive) -> [Entry] {
         archive.filter { entry in
             guard entry.type == .file else { return false }
             guard !entry.path.hasPrefix("__MACOSX") else { return false }
@@ -47,10 +35,12 @@ actor CBZService {
 
 enum CBZError: LocalizedError {
     case invalidArchive(URL)
+    case pageOutOfRange(Int)
 
     var errorDescription: String? {
         switch self {
         case .invalidArchive(let url): return "Could not open archive: \(url.lastPathComponent)"
+        case .pageOutOfRange(let index): return "Page \(index + 1) does not exist."
         }
     }
 }

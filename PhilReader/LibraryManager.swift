@@ -70,6 +70,16 @@ final class LibraryManager: ObservableObject {
         saveLibrary()
     }
 
+    #if DEBUG
+    /// Imports the comic named by `-demoComic` from Documents, once.
+    func importDemoComicIfNeeded() async {
+        guard let name = DemoLaunch.comicFileName else { return }
+        let title = (name as NSString).deletingPathExtension
+        guard !comics.contains(where: { $0.title == title }) else { return }
+        await importComic(from: documentsURL.appendingPathComponent(name))
+    }
+    #endif
+
     // MARK: - Helpers
 
     func fileURL(for comic: ComicBook) -> URL {
@@ -81,12 +91,8 @@ final class LibraryManager: ObservableObject {
         if let data = try? Data(contentsOf: cacheURL), let img = UIImage(data: data) { return img }
 
         guard let data = try? await service.extractCover(from: fileURL(for: comic)),
-              let img = UIImage(data: data) else { return nil }
+              let thumb = ImageDownsampler.image(from: data, maxPixelSize: 600) else { return nil }
 
-        let size = CGSize(width: 300, height: 450)
-        let thumb = UIGraphicsImageRenderer(size: size).image { _ in
-            img.draw(in: CGRect(origin: .zero, size: size))
-        }
         try? thumb.jpegData(compressionQuality: 0.8)?.write(to: cacheURL)
         return thumb
     }

@@ -5,7 +5,6 @@ struct LibraryView: View {
     @EnvironmentObject private var library: LibraryManager
     @State private var showingFilePicker = false
     @State private var selectedComic: ComicBook?
-    @State private var showingReader = false
 
     private let columns = [GridItem(.adaptive(minimum: 140, maximum: 180), spacing: 16)]
 
@@ -21,10 +20,7 @@ struct LibraryView: View {
                         LazyVGrid(columns: columns, spacing: 20) {
                             ForEach(library.comics) { comic in
                                 ComicCell(comic: comic)
-                                    .onTapGesture {
-                                        selectedComic = comic
-                                        showingReader = true
-                                    }
+                                    .onTapGesture { selectedComic = comic }
                             }
                         }
                         .padding(16)
@@ -60,11 +56,25 @@ struct LibraryView: View {
             } message: {
                 Text(library.importError ?? "")
             }
-            .fullScreenCover(isPresented: $showingReader) {
-                if let comic = selectedComic { ReaderView(comic: comic) }
+            .fullScreenCover(item: $selectedComic) { comic in
+                ReaderView(comic: comic, fileURL: library.fileURL(for: comic))
             }
+            #if DEBUG
+            .task { await openDemoComicIfRequested() }
+            #endif
         }
     }
+
+    #if DEBUG
+    private func openDemoComicIfRequested() async {
+        await library.importDemoComicIfNeeded()
+        guard DemoLaunch.opensReader, let comic = library.comics.first else { return }
+        if let page = DemoLaunch.page {
+            library.updateProgress(for: comic.id, page: max(page - 1, 0))
+        }
+        selectedComic = library.comics.first
+    }
+    #endif
 
     private var emptyState: some View {
         VStack(spacing: 20) {
