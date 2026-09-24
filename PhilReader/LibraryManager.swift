@@ -242,7 +242,8 @@ final class LibraryManager: ObservableObject {
             update(comic.id) { comic in
                 comic.currentPage = max(entry.page - 1, 0)
                 comic.isFinished = entry.page >= comic.pageCount
-                comic.lastOpened = Date().addingTimeInterval(-3600 * Double(offset + 1))
+                // A few days apart, so Reading Now shows a spread of dates.
+                comic.lastOpened = Date().addingTimeInterval(-3600 - 86_400 * 3 * Double(offset))
             }
         }
     }

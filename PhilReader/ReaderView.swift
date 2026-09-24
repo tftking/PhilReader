@@ -16,6 +16,7 @@ struct ReaderView: View {
     @AppStorage("reader.spreads") private var spreadsInLandscape = true
     @AppStorage("reader.guided") private var guidedView = false
     @AppStorage("reader.transition") private var transition: PageTransition = .slide
+    @AppStorage("reader.keepAwake") private var keepAwake = true
 
     /// Zero-based page; `pageCount` means the end-of-comic card.
     @State private var currentIndex: Int
@@ -113,7 +114,11 @@ struct ReaderView: View {
         .onChange(of: mode) { newMode in
             model.sizesForVerticalScroll = newMode == .vertical
         }
-        .onDisappear { library.updateProgress(for: comic.id, page: pageIndex) }
+        .onAppear { UIApplication.shared.isIdleTimerDisabled = keepAwake }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+            library.updateProgress(for: comic.id, page: pageIndex)
+        }
         .sheet(isPresented: $showSettings, onDismiss: scheduleHide) {
             ReaderSettingsSheet(mode: modeBinding, isRightToLeft: directionBinding, guidedView: $guidedView,
                                 transition: $transition, fit: $fit,

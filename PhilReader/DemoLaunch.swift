@@ -42,8 +42,18 @@ enum DemoLaunch {
     static var selectedTitles: [String] {
         (defaults.string(forKey: "demoSelect") ?? "").split(separator: ",").map(String.init)
     }
-    /// Selects a tab: "library", "collections" or "settings".
+    /// Selects a tab: "readingNow", "library", "search" or "settings".
     static var tab: AppTab? { defaults.string(forKey: "demoTab").flatMap { AppTab(rawValue: $0) } }
+    /// Opens a comics grid in the Library tab: "all", "device" or a linked folder's name.
+    static var libraryScope: String? { defaults.string(forKey: "demoScope") }
+    /// Starts the Search tab with this text.
+    static var searchText: String? { defaults.string(forKey: "demoSearch") }
+    /// Opens a settings page: "readers".
+    static var settingsPage: String? { defaults.string(forKey: "demoSettings") }
+    /// Whether the launch shows something inside the Library tab.
+    static var browsesLibrary: Bool {
+        collectionName != nil || seriesName != nil || libraryScope != nil || !selectedTitles.isEmpty
+    }
     /// Links this folder inside Documents as a library folder (standing in for iCloud Drive).
     static var linkedFolderName: String? { defaults.string(forKey: "demoLinkFolder") }
     /// Starts on the end-of-comic card.

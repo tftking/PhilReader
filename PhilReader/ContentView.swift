@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum AppTab: String {
-    case library, collections, settings
+    case readingNow, library, search, settings
 }
 
 /// Presents the reader, comic details and "Add to Collection" for every tab,
@@ -45,21 +45,33 @@ final class ReadingCoordinator: ObservableObject {
 struct ContentView: View {
     @EnvironmentObject private var library: LibraryManager
     @StateObject private var coordinator = ReadingCoordinator()
-    @AppStorage("app.tab") private var tab: AppTab = .library
+    @AppStorage("app.tab") private var tab: AppTab = .readingNow
 
     var body: some View {
         TabView(selection: $tab) {
-            LibraryView()
-                .tabItem { Label("Library", systemImage: "books.vertical.fill") }
+            ReadingNowView(showLibrary: { tab = .library })
+                .tabItem { Label("Reading Now", systemImage: "book") }
+                .tag(AppTab.readingNow)
+            LibraryHomeView()
+                .tabItem { Label("Library", systemImage: "books.vertical") }
                 .tag(AppTab.library)
-            CollectionsTab()
-                .tabItem { Label("Collections", systemImage: "square.stack.fill") }
-                .tag(AppTab.collections)
+            SearchView()
+                .tabItem { Label("Search", systemImage: "magnifyingglass") }
+                .tag(AppTab.search)
             SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+                .tabItem { Label("Settings", systemImage: "gearshape") }
                 .tag(AppTab.settings)
         }
         .environmentObject(coordinator)
+        .overlay { if library.isImporting { ImportingOverlay() } }
+        .alert("Couldn't Import", isPresented: Binding(
+            get: { library.importError != nil },
+            set: { if !$0 { library.importError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(library.importError ?? "")
+        }
         .sheet(item: $coordinator.pendingAdd) { pending in
             AddToCollectionSheet(comicIDs: pending.comicIDs, onDone: pending.onDone)
         }
@@ -78,89 +90,46 @@ struct ContentView: View {
         .onAppear {
             // Each demo launch picks its tab; the saved tab would otherwise carry over between shots.
             if DemoLaunch.importsLibrary {
-                tab = DemoLaunch.tab ?? (DemoLaunch.collectionName != nil ? .collections : .library)
+                tab = DemoLaunch.tab ?? (DemoLaunch.browsesLibrary ? .library : .readingNow)
             }
         }
+        .task { await prepareDemo() }
         #endif
+    }
+
+    #if DEBUG
+    private func prepareDemo() async {
+        await library.prepareDemoLibrary()
+        if let title = DemoLaunch.openTitle, let comic = library.comics.first(where: { $0.title == title }) {
+            if let mode = DemoLaunch.mode { library.setReadingMode(comic.id, mode) }
+            if let page = DemoLaunch.page { library.updateProgress(for: comic.id, page: max(page - 1, 0)) }
+            coordinator.readingComic = library.comic(withID: comic.id)
+        } else if let title = DemoLaunch.infoTitle, let comic = library.comics.first(where: { $0.title == title }) {
+            coordinator.infoComic = comic
+        }
+    }
+    #endif
+}
+
+/// Slight press-down scale, like tapping a book on a shelf.
+struct CoverButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 
-// MARK: - Collections tab
-
-struct CollectionsTab: View {
-    @EnvironmentObject private var library: LibraryManager
-    @EnvironmentObject private var coordinator: ReadingCoordinator
-    @State private var path = NavigationPath()
-    @State private var creating = false
-
-    private let columns = [GridItem(.adaptive(minimum: 158, maximum: 220), spacing: 16, alignment: .top)]
-
+private struct ImportingOverlay: View {
     var body: some View {
-        NavigationStack(path: $path) {
-            Group {
-                if library.collections.isEmpty {
-                    empty
-                } else {
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: 24) {
-                            ForEach(library.collections) { collection in
-                                NavigationLink(value: collection.id) {
-                                    CollectionCard(collection: collection, width: nil)
-                                }
-                                .buttonStyle(CoverButtonStyle())
-                            }
-                        }
-                        .padding(20)
-                    }
-                }
+        ZStack {
+            Color.black.opacity(0.35).ignoresSafeArea()
+            VStack(spacing: 12) {
+                ProgressView().controlSize(.large)
+                Text("Importing…").font(.headline)
             }
-            .navigationTitle("Collections")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { creating = true } label: { Image(systemName: "plus") }
-                        .accessibilityLabel("New Collection")
-                }
-            }
-            .navigationDestination(for: UUID.self) { id in
-                CollectionView(collectionID: id, actions: coordinator.actions)
-            }
-            .sheet(isPresented: $creating) {
-                CollectionEditor(title: "New Collection") { name, color in
-                    let collection = library.createCollection(named: name, color: color)
-                    path.append(collection.id)
-                }
-            }
-            #if DEBUG
-            .task {
-                await library.prepareDemoLibrary()
-                if let name = DemoLaunch.collectionName, path.isEmpty,
-                   let collection = library.collections.first(where: { $0.name == name }) {
-                    path.append(collection.id)
-                }
-            }
-            #endif
+            .padding(28)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
-    }
-
-    private var empty: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "square.stack.3d.up.fill")
-                .font(.system(size: 52))
-                .foregroundStyle(.tint)
-            Text("No Collections Yet")
-                .font(.system(.title2, design: .rounded).bold())
-            Text("Group comics however you like: favourites,\na reading list, a publisher, a story arc.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Button { creating = true } label: {
-                Label("New Collection", systemImage: "plus").font(.headline).padding(.horizontal, 8)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .buttonBorderShape(.capsule)
-        }
-        .padding(32)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
