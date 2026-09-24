@@ -33,6 +33,11 @@
 		222222222222222222222282 /* ReaderLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111182 /* ReaderLayout.swift */; };
 		222222222222222222222283 /* ComicSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111183 /* ComicSource.swift */; };
 		666666666666666666666617 /* FormatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666666666666618 /* FormatTests.swift */; };
+		222222222222222222222284 /* ExtractedArchive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111184 /* ExtractedArchive.swift */; };
+		222222222222222222222285 /* SevenZipExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111185 /* SevenZipExtractor.swift */; };
+		222222222222222222222286 /* RarExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111186 /* RarExtractor.swift */; };
+		222222222222222222222203 /* SWCompression in Frameworks */ = {isa = PBXBuildFile; productRef = 5555555555555555555555DD /* SWCompression */; };
+		222222222222222222222204 /* Unrar in Frameworks */ = {isa = PBXBuildFile; productRef = 5555555555555555555555FF /* Unrar */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -74,6 +79,9 @@
 		111111111111111111111182 /* ReaderLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderLayout.swift; sourceTree = "<group>"; };
 		111111111111111111111183 /* ComicSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComicSource.swift; sourceTree = "<group>"; };
 		666666666666666666666618 /* FormatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatTests.swift; sourceTree = "<group>"; };
+		111111111111111111111184 /* ExtractedArchive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtractedArchive.swift; sourceTree = "<group>"; };
+		111111111111111111111185 /* SevenZipExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SevenZipExtractor.swift; sourceTree = "<group>"; };
+		111111111111111111111186 /* RarExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RarExtractor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -82,6 +90,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				222222222222222222222202 /* ZIPFoundation in Frameworks */,
+				222222222222222222222203 /* SWCompression in Frameworks */,
+				222222222222222222222204 /* Unrar in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -116,6 +126,9 @@
 				111111111111111111111100 /* LibraryManager.swift */,
 				111111111111111111111177 /* CBZDocument.swift */,
 				111111111111111111111183 /* ComicSource.swift */,
+				111111111111111111111184 /* ExtractedArchive.swift */,
+				111111111111111111111185 /* SevenZipExtractor.swift */,
+				111111111111111111111186 /* RarExtractor.swift */,
 				111111111111111111111178 /* ReaderModel.swift */,
 				111111111111111111111179 /* ZoomablePage.swift */,
 				11111111111111111111117A /* DemoLaunch.swift */,
@@ -171,6 +184,8 @@
 			name = PhilReader;
 			packageProductDependencies = (
 				5555555555555555555555BB /* ZIPFoundation */,
+				5555555555555555555555DD /* SWCompression */,
+				5555555555555555555555FF /* Unrar */,
 			);
 			productName = PhilReader;
 			productReference = EEEEEEEEEEEEEEEEEEEEEEEE /* PhilReader.app */;
@@ -223,6 +238,8 @@
 			mainGroup = BBBBBBBBBBBBBBBBBBBBBBBB;
 			packageReferences = (
 				5555555555555555555555AA /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
+				5555555555555555555555CC /* XCRemoteSwiftPackageReference "SWCompression" */,
+				5555555555555555555555EE /* XCRemoteSwiftPackageReference "Unrar.swift" */,
 			);
 			productRefGroup = DDDDDDDDDDDDDDDDDDDDDDDD /* Products */;
 			projectDirPath = "";
@@ -259,6 +276,9 @@
 				222222222222222222222200 /* LibraryManager.swift in Sources */,
 				222222222222222222222277 /* CBZDocument.swift in Sources */,
 				222222222222222222222283 /* ComicSource.swift in Sources */,
+				222222222222222222222284 /* ExtractedArchive.swift in Sources */,
+				222222222222222222222285 /* SevenZipExtractor.swift in Sources */,
+				222222222222222222222286 /* RarExtractor.swift in Sources */,
 				222222222222222222222278 /* ReaderModel.swift in Sources */,
 				222222222222222222222279 /* ZoomablePage.swift in Sources */,
 				22222222222222222222227A /* DemoLaunch.swift in Sources */,
@@ -467,6 +487,22 @@
 				minimumVersion = 0.9.0;
 			};
 		};
+		5555555555555555555555CC /* XCRemoteSwiftPackageReference "SWCompression" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tsolomko/SWCompression.git";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 4.8.6;
+			};
+		};
+		5555555555555555555555EE /* XCRemoteSwiftPackageReference "Unrar.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/mtgto/Unrar.swift.git";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 0.5.4;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -474,6 +510,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 5555555555555555555555AA /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
 			productName = ZIPFoundation;
+		};
+		5555555555555555555555DD /* SWCompression */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5555555555555555555555CC /* XCRemoteSwiftPackageReference "SWCompression" */;
+			productName = SWCompression;
+		};
+		5555555555555555555555FF /* Unrar */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5555555555555555555555EE /* XCRemoteSwiftPackageReference "Unrar.swift" */;
+			productName = Unrar;
 		};
 /* End XCSwiftPackageProductDependency section */
 

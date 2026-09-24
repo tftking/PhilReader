@@ -11,6 +11,9 @@ struct LibraryView: View {
     @State private var infoComic: ComicBook?
     @State private var pendingRead: ComicBook?
 
+    private static let importableTypes: [UTType] =
+        ["cbz", "cbr", "cb7", "rar", "7z"].compactMap { UTType(filenameExtension: $0) } + [.zip, .pdf, .folder]
+
     private let columns = [GridItem(.adaptive(minimum: 104, maximum: 170), spacing: 18, alignment: .top)]
 
     private var query: LibraryQuery { LibraryQuery(search: search, sort: sort, filter: filter) }
@@ -33,7 +36,7 @@ struct LibraryView: View {
         }
         .fileImporter(
             isPresented: $showingFilePicker,
-            allowedContentTypes: [UTType(filenameExtension: "cbz") ?? .zip, .zip, .pdf, .folder],
+            allowedContentTypes: Self.importableTypes,
             allowsMultipleSelection: true
         ) { result in
             if case .success(let urls) = result {
@@ -125,7 +128,7 @@ struct LibraryView: View {
                 .foregroundStyle(.tint)
             Text("Your Library Is Empty")
                 .font(.title2.bold())
-            Text("Import comics (.cbz, .pdf or a folder of images)\nfrom Files, or open one from another app.")
+            Text("Import comics (.cbz, .cbr, .cb7, .pdf or a folder\nof images) from Files, or open one from another app.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

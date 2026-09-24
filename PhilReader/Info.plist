@@ -52,6 +52,8 @@
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>com.philreader.cbz</string>
+				<string>com.philreader.cbr</string>
+				<string>com.philreader.cb7</string>
 			</array>
 		</dict>
 		<dict>
@@ -66,6 +68,49 @@
 				<string>public.zip-archive</string>
 				<string>com.adobe.pdf</string>
 			</array>
+		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.philreader.cbr</string>
+			<key>UTTypeDescription</key>
+			<string>Comic Book Archive (RAR)</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.archive</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>cbr</string>
+				</array>
+				<key>public.mime-type</key>
+				<string>application/x-cbr</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.philreader.cb7</string>
+			<key>UTTypeDescription</key>
+			<string>Comic Book Archive (7-Zip)</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.archive</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>cb7</string>
+				</array>
+				<key>public.mime-type</key>
+				<string>application/x-cb7</string>
+			</dict>
 		</dict>
 	</array>
 	<key>UTExportedTypeDeclarations</key>

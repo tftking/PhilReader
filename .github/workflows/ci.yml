@@ -58,7 +58,7 @@ jobs:
           sample() { "$RUNNER_TEMP/make-sample-cbz" "screenshots/comics/$1" "${@:2}"; }
           sample "Starfall 1.cbz" --series Starfall --number 1 --title "First Light" --hue 0.60 --pages 12
           sample "Starfall 2.cbz" --series Starfall --number 2 --title "Dark Water" --hue 0.52 --pages 10
-          sample "Midnight Ramen 1.cbz" --series "Midnight Ramen" --number 1 --title "Open Late" --hue 0.07 --pages 12
+          sample "Midnight Ramen 1.cb7" --series "Midnight Ramen" --number 1 --title "Open Late" --hue 0.07 --pages 12 --format cb7
           sample "Paper Tigers 1.pdf" --series "Paper Tigers" --number 1 --title "Crease" --hue 0.97 --pages 8 --format pdf
           sample "Moonlit 1" --series Moonlit --number 1 --title "Tides" --hue 0.78 --pages 9 --format folder
 

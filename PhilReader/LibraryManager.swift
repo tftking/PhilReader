@@ -33,12 +33,7 @@ final class LibraryManager: ObservableObject {
         }
 
         // Keep the extension so the format can be recognised later; folders have none.
-        let destName: String
-        switch format {
-        case .cbz: destName = UUID().uuidString + ".cbz"
-        case .pdf: destName = UUID().uuidString + ".pdf"
-        case .folder: destName = UUID().uuidString
-        }
+        let destName = format.storedExtension.map { "\(UUID().uuidString).\($0)" } ?? UUID().uuidString
         let destURL = documentsURL.appendingPathComponent(destName, isDirectory: format == .folder)
 
         do {
@@ -56,6 +51,7 @@ final class LibraryManager: ObservableObject {
             saveLibrary()
         } catch {
             try? FileManager.default.removeItem(at: destURL)
+            ExtractedArchive.remove(for: destURL)
             importError = error.localizedDescription
         }
     }
@@ -130,6 +126,7 @@ final class LibraryManager: ObservableObject {
             let comic = comics[index]
             try? FileManager.default.removeItem(at: fileURL(for: comic))
             try? FileManager.default.removeItem(at: coverCacheURL(for: comic.id))
+            ExtractedArchive.remove(for: fileURL(for: comic))
         }
         comics.remove(atOffsets: offsets)
         saveLibrary()

@@ -5,8 +5,8 @@ A native iOS manga/comic reader for **CBZ** files, built with SwiftUI.
 ## Features
 
 - Library grid with cover thumbnails and reading-progress badges
-- Import `.cbz` / `.zip` and `.pdf` files or folders of images via the in-app
-  picker or "Open in…" from the Files app
+- Import `.cbz` / `.zip`, `.cbr` / `.rar`, `.cb7` / `.7z` and `.pdf` files or
+  folders of images via the in-app picker or "Open in…" from the Files app
 - Full-screen paged reader with pinch and double-tap zoom
 - Pages load lazily: only the pages around the one you're reading are decoded,
   downsampled to screen size, so long volumes stay light on memory
@@ -74,3 +74,13 @@ before `page10`.
 - Two-page spread on iPad in landscape
 - Support for `.cbr` (RAR) and `.cb7` archives
 - Series grouping and sorting in the library
+
+## Third-party code
+
+- [ZIPFoundation](https://github.com/weichsel/ZIPFoundation) (MIT) for CBZ
+- [SWCompression](https://github.com/tsolomko/SWCompression) (MIT) for CB7
+- [Unrar.swift](https://github.com/mtgto/Unrar.swift) (MIT) for CBR, which bundles the
+  UnRAR source code under its own license: *"UnRAR source code may be used in any
+  software to handle RAR archives without limitations free of charge, but cannot be
+  used to develop RAR (WinRAR) compatible archiver and to re-create RAR compression
+  algorithm, which is proprietary."*

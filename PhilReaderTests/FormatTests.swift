@@ -83,6 +83,49 @@ final class FormatTests: XCTestCase {
         XCTAssertEqual(metadata?.series, "Moonlit")
     }
 
+    // MARK: - CB7 and CBR
+
+    func testCB7PagesAndMetadata() async throws {
+        let url = tempDir.appendingPathComponent("\(UUID().uuidString).cb7")
+        try Data(base64Encoded: Fixtures.sevenZip.joined())!.write(to: url)
+        defer { ExtractedArchive.remove(for: url) }
+        try await assertSolidArchive(url)
+    }
+
+    func testCBRPagesAndMetadata() async throws {
+        let url = tempDir.appendingPathComponent("\(UUID().uuidString).cbr")
+        try Data(base64Encoded: Fixtures.rar.joined())!.write(to: url)
+        defer { ExtractedArchive.remove(for: url) }
+        try await assertSolidArchive(url)
+    }
+
+    func testCorruptCBRThrows() throws {
+        let url = tempDir.appendingPathComponent("\(UUID().uuidString).cbr")
+        try Data("Rar! but not really".utf8).write(to: url)
+        XCTAssertThrowsError(try ComicSources.open(url))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: ExtractedArchive.folderURL(for: url).path))
+    }
+
+    /// Both fixtures hold pages/10.png (20px wide), pages/2.png (10px), pages/extra/1.png (30px),
+    /// notes.txt and ComicInfo.xml for Starfall #4.
+    private func assertSolidArchive(_ url: URL, file: StaticString = #filePath, line: UInt = #line) async throws {
+        let source = try ComicSources.open(url)
+        XCTAssertEqual(source.pageCount, 3, file: file, line: line)
+        var widths: [Int?] = []
+        for index in 0..<source.pageCount {
+            let image = await source.image(at: index, maxPixelSize: 1000, maxWidth: nil)
+            widths.append(image?.cgImage?.width)
+        }
+        XCTAssertEqual(widths, [10, 20, 30], file: file, line: line)
+
+        let metadata = await ComicSources.metadata(for: url)
+        XCTAssertEqual(metadata?.series, "Starfall", file: file, line: line)
+        XCTAssertEqual(metadata?.number, "4", file: file, line: line)
+
+        // A second open reuses the unpacked folder.
+        XCTAssertEqual(try ComicSources.open(url).pageCount, 3, file: file, line: line)
+    }
+
     // MARK: - Helpers
 
     private func makePDF(pages: Int, title: String? = nil, author: String? = nil) -> Data {
@@ -125,4 +168,27 @@ final class FormatTests: XCTestCase {
         }
         return (pixel[0], pixel[1], pixel[2])
     }
+}
+
+/// Tiny archives made with py7zr (7-Zip, LZMA2) and a hand-built stored RAR5
+/// (verified with Python's rarfile), since neither format can be written on iOS.
+private enum Fixtures {
+    static let sevenZip = [
+        "N3q8ryccAASOnqKUcwEAAAAAAAAXAAAAAAAAAC+oV53gASQAtV0ARJQFxHon9vfuiY5QkIizqtVQJVKKnK/FRCMRZhU/580b",
+        "WLhSEifFVUh4LM9XCtD6nQlSLt3ZI4euuluLJYXLkCO2Ea7gPUAdxgMpzkii59D4DJcw+AKg6isefJNajrDaPFhIhziOInm3",
+        "oHlEUnB3pumHKvMde/dj+4FDZSEzpMuiHvKavkmEIrNGSW4VfzXINIcJEgCH6LTz8t5HuRRpieFl9O+AFiGOtS6AXAuthoHW",
+        "q0DvAADgARMArl0AAIEzB64P1TEBfFck0c/j92TRWslv34CaU9m7befAOzUEnXxvaKoCe9TJmLn1CKbM62xYUm946iCs5p7E",
+        "D/z5l75EAMEfGzcqMLrfI9EfwX9rfPD+n1egU/zq1SIuQ2nTYma7rAptgWngC5KZOLc5pPBPrsvZA7G+k6vetdrQqmfC677x",
+        "ey32miL9XtZvQWdzPb9mnHOEgvKMe0KkDI2KITarCCCN0Z42WN2K8AAAABcGgL0BCYC2AAcLAQABISEBGAyBFAAA",
+    ]
+
+    static let rar = [
+        "UmFyIRoHAQDFGjMyAwEAAAevxTgZAgJJBEkg6U4t/gAADHBhZ2VzLzEwLnBuZ4lQTkcNChoKAAAADUlIRFIAAAAUAAAABAgC",
+        "AAAAAT2IwQAAABBJREFUeJxjYGD4TwEakpoBrU9PsW9yn1EAAAAASUVORK5CYIL/ZiZ0GAICSQRJIPdxYMwAAAtwYWdlcy8y",
+        "LnBuZ4lQTkcNChoKAAAADUlIRFIAAAAKAAAABAgCAAAAOFo5mgAAABBJREFUeJxjYGD4jxfRUBoAf3sn2db7djsAAAAASUVO",
+        "RK5CYILDXDgUHgICSwRLIFZEFq8AABFwYWdlcy9leHRyYS8xLnBuZ4lQTkcNChoKAAAADUlIRFIAAAAeAAAABAgCAAAAFh8Y",
+        "CAAAABJJREFUeJxjYGD4TzM0ajQKAgCJgHeJg8kYXgAAAABJRU5ErkJggnl/btIWAgIGBAYg4taIDQAACW5vdGVzLnR4dGln",
+        "bm9yZW+CuyYaAgJCBEIg8kZYHwAADUNvbWljSW5mby54bWw8Q29taWNJbmZvPjxTZXJpZXM+U3RhcmZhbGw8L1Nlcmllcz48",
+        "TnVtYmVyPjQ8L051bWJlcj48L0NvbWljSW5mbz4Zsjo1AwUAAA==",
+    ]
 }

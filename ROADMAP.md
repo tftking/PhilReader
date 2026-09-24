@@ -26,12 +26,11 @@ ship on their own; ✅ = done, 🚧 = in progress.
 - ✅ Keyboard page turns (arrows, space, shift-space, escape)
 - Later: fade / no-animation page transitions, zoom in vertical scroll mode
 
-## Phase 3 — Formats 🚧
+## Phase 3 — Formats 🚧 (only comic EPUB left)
 - ✅ PDF (PDFKit), rendered at the size needed so pages stay sharp; title and author as metadata
 - ✅ Folders of images (including subfolders and `ComicInfo.xml`)
 - ✅ More image types inside archives: HEIC, AVIF, TIFF
-- CB7 (7-Zip)
-- CBR (RAR, needs a RAR decoding library, check licensing)
+- ✅ CB7 (7-Zip, via SWCompression) and CBR (RAR, via Unrar.swift), unpacked once to a cache
 - Comic EPUB (fixed-layout)
 
 ## Phase 4 — Organisation

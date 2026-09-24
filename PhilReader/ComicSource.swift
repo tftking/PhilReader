@@ -11,7 +11,7 @@ protocol ComicPageSource: AnyObject, Sendable {
 }
 
 enum ComicFormat: Equatable {
-    case cbz, pdf, folder
+    case cbz, cb7, cbr, pdf, folder
 
     static let imageExtensions: Set<String> = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "tif", "tiff", "heic", "avif"]
 
@@ -22,6 +22,8 @@ enum ComicFormat: Equatable {
         }
         switch url.pathExtension.lowercased() {
         case "cbz", "zip": self = .cbz
+        case "cb7", "7z": self = .cb7
+        case "cbr", "rar": self = .cbr
         case "pdf": self = .pdf
         default: return nil
         }
@@ -29,6 +31,26 @@ enum ComicFormat: Equatable {
 
     static func isImage(_ url: URL) -> Bool {
         imageExtensions.contains(url.pathExtension.lowercased())
+    }
+
+    /// File extension used when storing an imported comic; folders have none.
+    var storedExtension: String? {
+        switch self {
+        case .cbz: return "cbz"
+        case .cb7: return "cb7"
+        case .cbr: return "cbr"
+        case .pdf: return "pdf"
+        case .folder: return nil
+        }
+    }
+
+    /// Unpacks solid archive formats into a cached folder; `nil` for formats read in place.
+    func extractedFolder(for url: URL) throws -> URL? {
+        switch self {
+        case .cb7: return try ExtractedArchive.folder(for: url) { try SevenZipExtractor.extract(url, into: $0) }
+        case .cbr: return try ExtractedArchive.folder(for: url) { try RarExtractor.extract(url, into: $0) }
+        case .cbz, .pdf, .folder: return nil
+        }
     }
 }
 
@@ -41,7 +63,7 @@ enum ComicSourceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupported(let url):
-            return "\u{201C}\(url.lastPathComponent)\u{201D} isn't a supported format. PhilReader opens .cbz, .zip and .pdf files and folders of images."
+            return "\u{201C}\(url.lastPathComponent)\u{201D} isn't a supported format. PhilReader opens .cbz, .cbr, .cb7 and .pdf files and folders of images."
         case .unreadable(let url):
             return "\u{201C}\(url.lastPathComponent)\u{201D} couldn't be read."
         case .locked(let url):
@@ -56,6 +78,15 @@ enum ComicSources {
     static func open(_ url: URL) throws -> ComicPageSource {
         switch ComicFormat(url: url) {
         case .cbz: return try CBZDocument(url: url)
+        case .cb7, .cbr:
+            do {
+                guard let folder = try ComicFormat(url: url)?.extractedFolder(for: url) else { throw ComicSourceError.unreadable(url) }
+                return try FolderComicDocument(url: folder)
+            } catch let error as ComicSourceError {
+                throw error
+            } catch {
+                throw ComicSourceError.unreadable(url)
+            }
         case .pdf: return try PDFComicDocument(url: url)
         case .folder: return try FolderComicDocument(url: url)
         case nil: throw ComicSourceError.unsupported(url)
@@ -66,6 +97,9 @@ enum ComicSources {
         switch ComicFormat(url: url) {
         case .cbz:
             return await CBZService.shared.metadata(in: url)
+        case .cb7, .cbr:
+            guard let folder = try? ComicFormat(url: url)?.extractedFolder(for: url) else { return nil }
+            return await metadata(for: folder)
         case .folder:
             let info = (try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil))?
                 .first { $0.lastPathComponent.lowercased() == "comicinfo.xml" }
