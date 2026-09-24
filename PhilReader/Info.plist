@@ -52,7 +52,19 @@
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>com.philreader.cbz</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Comic in a ZIP or PDF</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
 				<string>public.zip-archive</string>
+				<string>com.adobe.pdf</string>
 			</array>
 		</dict>
 	</array>

@@ -31,7 +31,7 @@ final class ReaderModel: ObservableObject {
     }
 
     private let fileURL: URL
-    private var document: CBZDocument?
+    private var document: ComicPageSource?
     private let cache = NSCache<NSNumber, UIImage>()
     private let thumbnails = NSCache<NSNumber, UIImage>()
     private var inFlight: [Int: Task<UIImage?, Never>] = [:]
@@ -49,7 +49,7 @@ final class ReaderModel: ObservableObject {
         let url = fileURL
         do {
             let document = try await Task.detached(priority: .userInitiated) {
-                try CBZDocument(url: url)
+                try ComicSources.open(url)
             }.value
             self.document = document
             pageCount = document.pageCount
@@ -94,7 +94,7 @@ final class ReaderModel: ObservableObject {
     func thumbnail(at index: Int) async -> UIImage? {
         if let image = thumbnails.object(forKey: index as NSNumber) { return image }
         guard let document else { return nil }
-        let image = await document.image(at: index, maxPixelSize: Self.thumbnailPixelSize)
+        let image = await document.image(at: index, maxPixelSize: Self.thumbnailPixelSize, maxWidth: nil)
         if let image { thumbnails.setObject(image, forKey: index as NSNumber, cost: image.memoryCost) }
         return image
     }

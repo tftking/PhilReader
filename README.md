@@ -5,7 +5,8 @@ A native iOS manga/comic reader for **CBZ** files, built with SwiftUI.
 ## Features
 
 - Library grid with cover thumbnails and reading-progress badges
-- Import `.cbz` / `.zip` files via the in-app picker or "Open in…" from the Files app
+- Import `.cbz` / `.zip` and `.pdf` files or folders of images via the in-app
+  picker or "Open in…" from the Files app
 - Full-screen paged reader with pinch and double-tap zoom
 - Pages load lazily: only the pages around the one you're reading are decoded,
   downsampled to screen size, so long volumes stay light on memory

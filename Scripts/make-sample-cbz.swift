@@ -4,6 +4,8 @@
 //     swift Scripts/make-sample-cbz.swift "Starfall 1.cbz" \
 //         --series Starfall --number 1 --title "First Light" --hue 0.6 --pages 12
 //
+// Add `--format pdf` or `--format folder` for the other formats PhilReader opens.
+//
 // Requires macOS (uses AppKit for drawing and /usr/bin/zip for packaging).
 import AppKit
 
@@ -20,6 +22,8 @@ let storyTitle = options["title"] ?? "A Sample Manga"
 let hue = CGFloat(Double(options["hue"] ?? "") ?? 0.98)
 let pageCount = Int(options["pages"] ?? "") ?? 12
 let writer = options["writer"] ?? "PhilReader Studio"
+/// "cbz" (default), "pdf" or "folder".
+let outputFormat = options["format"] ?? "cbz"
 let pageSize = CGSize(width: 1200, height: 1800)
 let ink = NSColor(white: 0.08, alpha: 1)
 let paper = NSColor(white: 0.97, alpha: 1)
@@ -160,12 +164,33 @@ files.append("ComicInfo.xml")
 
 let outputURL = URL(fileURLWithPath: output, relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath))
 try? FileManager.default.removeItem(at: outputURL)
-let zip = Process()
-zip.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
-zip.currentDirectoryURL = workDir
-zip.arguments = ["-q", "-0", outputURL.path] + files
-try zip.run()
-zip.waitUntilExit()
-try? FileManager.default.removeItem(at: workDir)
-guard zip.terminationStatus == 0 else { fatalError("zip failed with status \(zip.terminationStatus)") }
-print("Wrote \(pageCount) pages to \(outputURL.path)")
+
+switch outputFormat {
+case "folder":
+    // A plain folder of images plus ComicInfo.xml.
+    try FileManager.default.moveItem(at: workDir, to: outputURL)
+case "pdf":
+    // One PDF page per image, with the JPEG data embedded as-is.
+    var mediaBox = CGRect(x: 0, y: 0, width: pageSize.width / 2, height: pageSize.height / 2)
+    let info = [kCGPDFContextTitle: "\(series) #\(issue)", kCGPDFContextAuthor: writer] as CFDictionary
+    guard let pdf = CGContext(outputURL as CFURL, mediaBox: &mediaBox, info) else { fatalError("Couldn't create PDF") }
+    for name in files where name.hasSuffix(".jpg") {
+        guard let source = CGImageSourceCreateWithURL(workDir.appendingPathComponent(name) as CFURL, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { continue }
+        pdf.beginPDFPage(nil)
+        pdf.draw(image, in: mediaBox)
+        pdf.endPDFPage()
+    }
+    pdf.closePDF()
+    try? FileManager.default.removeItem(at: workDir)
+default:
+    let zip = Process()
+    zip.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
+    zip.currentDirectoryURL = workDir
+    zip.arguments = ["-q", "-0", outputURL.path] + files
+    try zip.run()
+    zip.waitUntilExit()
+    try? FileManager.default.removeItem(at: workDir)
+    guard zip.terminationStatus == 0 else { fatalError("zip failed with status \(zip.terminationStatus)") }
+}
+print("Wrote \(pageCount) pages to \(outputURL.path) (\(outputFormat))")

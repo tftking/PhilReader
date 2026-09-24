@@ -33,7 +33,7 @@ struct LibraryView: View {
         }
         .fileImporter(
             isPresented: $showingFilePicker,
-            allowedContentTypes: [UTType(filenameExtension: "cbz") ?? .zip, .zip],
+            allowedContentTypes: [UTType(filenameExtension: "cbz") ?? .zip, .zip, .pdf, .folder],
             allowsMultipleSelection: true
         ) { result in
             if case .success(let urls) = result {
@@ -125,7 +125,7 @@ struct LibraryView: View {
                 .foregroundStyle(.tint)
             Text("Your Library Is Empty")
                 .font(.title2.bold())
-            Text("Import .cbz files from the Files app, or open\none from another app with PhilReader.")
+            Text("Import comics (.cbz, .pdf or a folder of images)\nfrom Files, or open one from another app.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

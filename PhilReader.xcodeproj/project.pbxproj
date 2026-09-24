@@ -31,6 +31,8 @@
 		222222222222222222222280 /* PageBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111180 /* PageBrowserView.swift */; };
 		222222222222222222222281 /* ReaderSettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111181 /* ReaderSettingsSheet.swift */; };
 		222222222222222222222282 /* ReaderLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111182 /* ReaderLayout.swift */; };
+		222222222222222222222283 /* ComicSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111183 /* ComicSource.swift */; };
+		666666666666666666666617 /* FormatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666666666666618 /* FormatTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,6 +72,8 @@
 		111111111111111111111180 /* PageBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageBrowserView.swift; sourceTree = "<group>"; };
 		111111111111111111111181 /* ReaderSettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderSettingsSheet.swift; sourceTree = "<group>"; };
 		111111111111111111111182 /* ReaderLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderLayout.swift; sourceTree = "<group>"; };
+		111111111111111111111183 /* ComicSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComicSource.swift; sourceTree = "<group>"; };
+		666666666666666666666618 /* FormatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,6 +115,7 @@
 				1111111111111111111111FF /* CBZService.swift */,
 				111111111111111111111100 /* LibraryManager.swift */,
 				111111111111111111111177 /* CBZDocument.swift */,
+				111111111111111111111183 /* ComicSource.swift */,
 				111111111111111111111178 /* ReaderModel.swift */,
 				111111111111111111111179 /* ZoomablePage.swift */,
 				11111111111111111111117A /* DemoLaunch.swift */,
@@ -143,6 +148,7 @@
 				666666666666666666666602 /* CBZServiceTests.swift */,
 				666666666666666666666604 /* ComicBookTests.swift */,
 				666666666666666666666616 /* LibraryTests.swift */,
+				666666666666666666666618 /* FormatTests.swift */,
 			);
 			path = PhilReaderTests;
 			sourceTree = "<group>";
@@ -252,6 +258,7 @@
 				2222222222222222222222FF /* CBZService.swift in Sources */,
 				222222222222222222222200 /* LibraryManager.swift in Sources */,
 				222222222222222222222277 /* CBZDocument.swift in Sources */,
+				222222222222222222222283 /* ComicSource.swift in Sources */,
 				222222222222222222222278 /* ReaderModel.swift in Sources */,
 				222222222222222222222279 /* ZoomablePage.swift in Sources */,
 				22222222222222222222227A /* DemoLaunch.swift in Sources */,
@@ -273,6 +280,7 @@
 				666666666666666666666601 /* CBZServiceTests.swift in Sources */,
 				666666666666666666666603 /* ComicBookTests.swift in Sources */,
 				666666666666666666666615 /* LibraryTests.swift in Sources */,
+				666666666666666666666617 /* FormatTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

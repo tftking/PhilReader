@@ -10,7 +10,6 @@ final class LibraryManager: ObservableObject {
     @Published var importError: String?
 
     private let storageKey = "philreader.library"
-    private let service = CBZService.shared
 
     private var documentsURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -28,20 +27,30 @@ final class LibraryManager: ObservableObject {
         let accessed = sourceURL.startAccessingSecurityScopedResource()
         defer { if accessed { sourceURL.stopAccessingSecurityScopedResource() } }
 
-        let ext = sourceURL.pathExtension.lowercased()
-        guard ext == "cbz" || ext == "zip" else {
-            importError = "Only .cbz and .zip files are supported."
+        guard let format = ComicFormat(url: sourceURL) else {
+            importError = ComicSourceError.unsupported(sourceURL).localizedDescription
             return
         }
 
-        let destName = UUID().uuidString + ".cbz"
-        let destURL = documentsURL.appendingPathComponent(destName)
+        // Keep the extension so the format can be recognised later; folders have none.
+        let destName: String
+        switch format {
+        case .cbz: destName = UUID().uuidString + ".cbz"
+        case .pdf: destName = UUID().uuidString + ".pdf"
+        case .folder: destName = UUID().uuidString
+        }
+        let destURL = documentsURL.appendingPathComponent(destName, isDirectory: format == .folder)
 
         do {
             try FileManager.default.copyItem(at: sourceURL, to: destURL)
-            let count = try await service.pageCount(in: destURL)
-            let metadata = await service.metadata(in: destURL)
-            let title = sourceURL.deletingPathExtension().lastPathComponent
+            let count = try await Task.detached(priority: .userInitiated) {
+                try ComicSources.open(destURL).pageCount
+            }.value
+            guard count > 0 else { throw ComicSourceError.noPages(sourceURL) }
+            let metadata = await ComicSources.metadata(for: destURL)
+            let title = format == .folder
+                ? sourceURL.lastPathComponent
+                : sourceURL.deletingPathExtension().lastPathComponent
             let comic = ComicBook(title: title, fileName: destName, pageCount: count, metadata: metadata)
             comics.insert(comic, at: 0)
             saveLibrary()
@@ -141,9 +150,9 @@ final class LibraryManager: ObservableObject {
         guard DemoLaunch.importsLibrary else { return }
         let ownFiles = Set(comics.map(\.fileName))
         let files = (try? FileManager.default.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil)) ?? []
-        for file in files.sorted(by: { $0.lastPathComponent < $1.lastPathComponent })
-        where file.pathExtension == "cbz" && !ownFiles.contains(file.lastPathComponent) {
-            let title = file.deletingPathExtension().lastPathComponent
+        for file in files.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            guard let format = ComicFormat(url: file), !ownFiles.contains(file.lastPathComponent) else { continue }
+            let title = format == .folder ? file.lastPathComponent : file.deletingPathExtension().lastPathComponent
             if !comics.contains(where: { $0.title == title }) { await importComic(from: file) }
         }
         for (offset, entry) in DemoLaunch.progress.enumerated() {
@@ -167,8 +176,9 @@ final class LibraryManager: ObservableObject {
         let cacheURL = coverCacheURL(for: comic.id)
         if let data = try? Data(contentsOf: cacheURL), let img = UIImage(data: data) { return img }
 
-        guard let data = try? await service.extractCover(from: fileURL(for: comic)),
-              let thumb = ImageDownsampler.image(from: data, maxPixelSize: 600) else { return nil }
+        let url = fileURL(for: comic)
+        guard let source = try? await Task.detached(operation: { try ComicSources.open(url) }).value,
+              let thumb = await source.image(at: 0, maxPixelSize: 600, maxWidth: nil) else { return nil }
 
         try? thumb.jpegData(compressionQuality: 0.8)?.write(to: cacheURL)
         return thumb

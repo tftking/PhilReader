@@ -30,15 +30,13 @@ actor CBZService {
         return ComicInfoParser.parse(buffer)
     }
 
-    private static let imageExtensions: Set<String> = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "tiff"]
-
     /// Image entries in reading order: natural filename sort, skipping macOS metadata.
     static func sortedImageEntries(in archive: Archive) -> [Entry] {
         archive.filter { entry in
             guard entry.type == .file else { return false }
             guard !entry.path.hasPrefix("__MACOSX") else { return false }
             let e = (entry.path as NSString).pathExtension.lowercased()
-            return imageExtensions.contains(e)
+            return ComicFormat.imageExtensions.contains(e)
         }
         .sorted { $0.path.compare($1.path, options: [.numeric, .caseInsensitive]) == .orderedAscending }
     }

@@ -55,12 +55,12 @@ jobs:
           set -euo pipefail
           mkdir -p screenshots/comics
           swiftc -O Scripts/make-sample-cbz.swift -o "$RUNNER_TEMP/make-sample-cbz"
-          sample() { "$RUNNER_TEMP/make-sample-cbz" "screenshots/comics/$1.cbz" "${@:2}"; }
-          sample "Starfall 1" --series Starfall --number 1 --title "First Light" --hue 0.60 --pages 12
-          sample "Starfall 2" --series Starfall --number 2 --title "Dark Water" --hue 0.52 --pages 10
-          sample "Midnight Ramen 1" --series "Midnight Ramen" --number 1 --title "Open Late" --hue 0.07 --pages 12
-          sample "Paper Tigers 1" --series "Paper Tigers" --number 1 --title "Crease" --hue 0.97 --pages 8
-          sample "Moonlit 1" --series Moonlit --number 1 --title "Tides" --hue 0.78 --pages 9
+          sample() { "$RUNNER_TEMP/make-sample-cbz" "screenshots/comics/$1" "${@:2}"; }
+          sample "Starfall 1.cbz" --series Starfall --number 1 --title "First Light" --hue 0.60 --pages 12
+          sample "Starfall 2.cbz" --series Starfall --number 2 --title "Dark Water" --hue 0.52 --pages 10
+          sample "Midnight Ramen 1.cbz" --series "Midnight Ramen" --number 1 --title "Open Late" --hue 0.07 --pages 12
+          sample "Paper Tigers 1.pdf" --series "Paper Tigers" --number 1 --title "Crease" --hue 0.97 --pages 8 --format pdf
+          sample "Moonlit 1" --series Moonlit --number 1 --title "Tides" --hue 0.78 --pages 9 --format folder
 
           xcrun simctl boot "$UDID" 2>/dev/null || true
           xcrun simctl bootstatus "$UDID" -b
@@ -70,7 +70,7 @@ jobs:
 
           DATA=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
           mkdir -p "$DATA/Documents"
-          cp screenshots/comics/*.cbz "$DATA/Documents/"
+          cp -R screenshots/comics/. "$DATA/Documents/"
 
           PROGRESS="Starfall 2=4;Midnight Ramen 1=7;Starfall 1=12"
           shoot() {
@@ -89,6 +89,7 @@ jobs:
           shoot 7-reader-settings -demoOpen "Starfall 2" -demoPage 4 -demoSheet settings
           shoot 8-vertical-scroll -demoOpen "Moonlit 1" -demoMode vertical -demoPage 2 -demoChrome visible
           shoot 9-end-of-comic -demoOpen "Starfall 1" -demoEnd YES -demoChrome hidden
+          shoot 10-pdf -demoOpen "Paper Tigers 1" -demoMode paged -demoPage 2 -demoChrome visible
 
       - name: Upload screenshots
         if: always()

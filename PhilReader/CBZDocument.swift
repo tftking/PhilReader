@@ -5,7 +5,7 @@ import ZIPFoundation
 
 /// An open CBZ archive that reads and decodes pages on demand, so only the
 /// pages being viewed are ever held in memory.
-actor CBZDocument {
+actor CBZDocument: ComicPageSource {
     nonisolated let pageCount: Int
     private let archive: Archive
     private let entries: [Entry]
