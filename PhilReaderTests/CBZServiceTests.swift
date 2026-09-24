@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 @testable import PhilReader
 
@@ -26,8 +27,77 @@ final class CBZServiceTests: XCTestCase {
         let count = try await CBZService.shared.pageCount(in: url)
         XCTAssertEqual(count, 3)
 
-        let pages = try await CBZService.shared.extractAllPages(from: url)
-        XCTAssertEqual(pages.map { String(decoding: $0, as: UTF8.self) }, ["one", "two", "ten"])
+        let document = try CBZDocument(url: url)
+        XCTAssertEqual(document.pageCount, 3)
+        var pages: [String] = []
+        for index in 0..<document.pageCount {
+            pages.append(String(decoding: try await document.pageData(at: index), as: UTF8.self))
+        }
+        XCTAssertEqual(pages, ["one", "two", "ten"])
+    }
+
+    func testDocumentReadsPagesOnDemandInAnyOrder() async throws {
+        let url = try makeCBZ((1...5).map { ("p\($0).png", Data("page \($0)".utf8)) })
+        let document = try CBZDocument(url: url)
+
+        let last = try await document.pageData(at: 4)
+        let first = try await document.pageData(at: 0)
+        XCTAssertEqual(String(decoding: last, as: UTF8.self), "page 5")
+        XCTAssertEqual(String(decoding: first, as: UTF8.self), "page 1")
+    }
+
+    func testDocumentRejectsOutOfRangePage() async throws {
+        let url = try makeCBZ([("p1.png", Data("one".utf8))])
+        let document = try CBZDocument(url: url)
+        do {
+            _ = try await document.pageData(at: 1)
+            XCTFail("Expected an out-of-range error")
+        } catch CBZError.pageOutOfRange(let index) {
+            XCTAssertEqual(index, 1)
+        }
+    }
+
+    func testDocumentDecodesAndDownsamplesPages() async throws {
+        let png = UIGraphicsImageRenderer(size: CGSize(width: 400, height: 800), format: {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            return format
+        }()).pngData { context in
+            UIColor.gray.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 400, height: 800))
+        }
+        let url = try makeCBZ([("tall.png", png), ("broken.png", Data("not an image".utf8))])
+        let document = try CBZDocument(url: url)
+
+        let downsampled = await document.image(at: 1, maxPixelSize: 200)
+        let image = try XCTUnwrap(downsampled)
+        XCTAssertEqual(image.cgImage?.width, 100)
+        XCTAssertEqual(image.cgImage?.height, 200)
+
+        let fullSize = await document.image(at: 1, maxPixelSize: 5000)
+        let full = try XCTUnwrap(fullSize)
+        XCTAssertEqual(full.cgImage?.height, 800, "Should never upscale")
+
+        let broken = await document.image(at: 0, maxPixelSize: 200)
+        XCTAssertNil(broken)
+    }
+
+    func testVerticalSizingLimitsWidthNotHeight() async throws {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let strip = UIGraphicsImageRenderer(size: CGSize(width: 200, height: 2000), format: format).pngData { context in
+            UIColor.darkGray.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 200, height: 2000))
+        }
+        let url = try makeCBZ([("strip.png", strip)])
+        let document = try CBZDocument(url: url)
+
+        let fitted = await document.image(at: 0, maxPixelSize: 1000)
+        XCTAssertEqual(fitted?.cgImage?.height, 1000, "Paged sizing caps the longest side")
+
+        let byWidth = await document.image(at: 0, maxPixelSize: 1000, maxWidth: 100)
+        XCTAssertEqual(byWidth?.cgImage?.width, 100, "Vertical sizing caps the width")
+        XCTAssertEqual(byWidth?.cgImage?.height, 1000)
     }
 
     func testCoverIsFirstSortedPage() async throws {
@@ -37,6 +107,17 @@ final class CBZServiceTests: XCTestCase {
         ])
         let cover = try await CBZService.shared.extractCover(from: url)
         XCTAssertEqual(cover.map { String(decoding: $0, as: UTF8.self) }, "first")
+    }
+
+    func testReadsComicInfoMetadata() async throws {
+        let xml = "<ComicInfo><Series>Starfall</Series><Number>1</Number></ComicInfo>"
+        let url = try makeCBZ([("ComicInfo.xml", Data(xml.utf8)), ("001.png", Data("page".utf8))])
+        let metadata = await CBZService.shared.metadata(in: url)
+        XCTAssertEqual(metadata?.series, "Starfall")
+        XCTAssertEqual(metadata?.number, "1")
+
+        let count = try await CBZService.shared.pageCount(in: url)
+        XCTAssertEqual(count, 1, "ComicInfo.xml must not count as a page")
     }
 
     func testInvalidArchiveThrows() async throws {

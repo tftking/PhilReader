@@ -2,220 +2,421 @@ import SwiftUI
 
 struct ReaderView: View {
     let comic: ComicBook
+    var openNext: (ComicBook) -> Void = { _ in }
 
     @EnvironmentObject private var library: LibraryManager
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var model: ReaderModel
+    @AppStorage("reader.rightToLeft") private var defaultRightToLeft = true
+    @AppStorage("reader.mode") private var defaultMode: ReadingMode = .paged
+    @AppStorage("reader.background") private var background: ReaderBackground = .black
+    @AppStorage("reader.tapToTurn") private var tapToTurn = true
+    @AppStorage("reader.liveText") private var liveText = true
+    @AppStorage("reader.fit") private var fit: PageFit = .screen
+    @AppStorage("reader.spreads") private var spreadsInLandscape = true
 
-    @State private var pages: [UIImage] = []
-    @State private var currentIndex = 0
-    @State private var isLoading = true
-    @State private var loadError: String?
-    @State private var showUI = true
-    @State private var isRightToLeft = false
+    /// Zero-based page; `pageCount` means the end-of-comic card.
+    @State private var currentIndex: Int
+    @State private var jumpToken = 0
+    @State private var showChrome = true
+    @State private var isScrubbing = false
     @State private var showSettings = false
+    @State private var showPages = false
     @State private var hideTask: Task<Void, Never>?
+    @State private var containerSize: CGSize = .zero
+
+    init(comic: ComicBook, fileURL: URL, openNext: @escaping (ComicBook) -> Void = { _ in }) {
+        self.comic = comic
+        self.openNext = openNext
+        _model = StateObject(wrappedValue: ReaderModel(fileURL: fileURL))
+        _currentIndex = State(initialValue: comic.currentPage)
+    }
+
+    // MARK: - Derived state
+
+    private var liveComic: ComicBook { library.comic(withID: comic.id) ?? comic }
+    private var mode: ReadingMode { liveComic.readingMode ?? defaultMode }
+    private var isRightToLeft: Bool {
+        liveComic.readsRightToLeft ?? liveComic.metadata?.readsRightToLeft ?? defaultRightToLeft
+    }
+    /// The slider follows the swipe direction: reversed only for right-to-left paging.
+    private var sliderReversed: Bool { mode == .paged && isRightToLeft }
+    private var pageIndex: Int { min(currentIndex, max(model.pageCount - 1, 0)) }
+    private var isAtEnd: Bool { model.pageCount > 0 && currentIndex >= model.pageCount }
+    private var isBookmarked: Bool { liveComic.bookmarks.contains(pageIndex) }
+    private var showsSpreads: Bool {
+        mode == .paged && spreadsInLandscape && containerSize.width > containerSize.height
+    }
+
+    /// Page groups in reading order (single pages or spreads), then the end card.
+    private var groups: [[Int]] {
+        let pages = showsSpreads
+            ? SpreadLayout.spreads(pageCount: model.pageCount, isWide: model.isWidePage)
+            : (0..<model.pageCount).map { [$0] }
+        return pages + [[model.pageCount]]
+    }
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            background.color.ignoresSafeArea()
 
-            if isLoading {
-                VStack(spacing: 16) {
-                    ProgressView().progressViewStyle(.circular).scaleEffect(1.5).tint(.white)
-                    Text("Loading pages…").foregroundStyle(.white.opacity(0.7))
-                }
-            } else if let error = loadError {
-                VStack(spacing: 20) {
-                    Image(systemName: "exclamationmark.triangle").font(.system(size: 48)).foregroundStyle(.orange)
-                    Text("Could not open comic").font(.headline).foregroundStyle(.white)
-                    Text(error).font(.caption).foregroundStyle(.white.opacity(0.6))
-                        .multilineTextAlignment(.center).padding(.horizontal, 32)
-                    Button("Go Back") { dismiss() }.buttonStyle(.bordered).tint(.white)
-                }
-            } else {
-                readerContent
+            switch model.phase {
+            case .downloading, .opening:
+                openingView
+            case .failed(let message):
+                failureView(message)
+            case .ready:
+                pages
+                    .ignoresSafeArea()
+                    .environment(\.colorScheme, background.colorScheme)
+                    .background(GeometryReader { proxy in
+                        Color.clear
+                            .onAppear { containerSize = proxy.size }
+                            .onChange(of: proxy.size) { containerSize = $0 }
+                    })
             }
 
-            if showUI { overlayUI }
+            chrome
+            keyboardShortcuts
         }
-        .statusBar(hidden: !showUI)
-        .ignoresSafeArea()
-        .task { await loadPages() }
-        .onDisappear { library.updateProgress(for: comic.id, page: currentIndex) }
-        .sheet(isPresented: $showSettings) {
-            ReaderSettingsSheet(isRightToLeft: $isRightToLeft)
-                .presentationDetents([.medium])
+        .statusBarHidden(!showChrome)
+        .persistentSystemOverlays(showChrome ? .automatic : .hidden)
+        .task { await openComic() }
+        .onChange(of: currentIndex) { index in
+            library.updateProgress(for: comic.id, page: index)
+            guard !isScrubbing else { return }
+            model.prefetch(around: index)
+            if showChrome && !showPages && !showSettings { setChrome(visible: false) }
+        }
+        .onChange(of: mode) { newMode in
+            model.sizesForVerticalScroll = newMode == .vertical
+        }
+        .onDisappear { library.updateProgress(for: comic.id, page: pageIndex) }
+        .sheet(isPresented: $showSettings, onDismiss: scheduleHide) {
+            ReaderSettingsSheet(mode: modeBinding, isRightToLeft: directionBinding, fit: $fit,
+                                spreadsInLandscape: $spreadsInLandscape, background: $background,
+                                tapToTurn: $tapToTurn, liveText: $liveText)
+                .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showPages, onDismiss: scheduleHide) {
+            PageBrowserView(model: model, currentIndex: pageIndex, bookmarks: liveComic.bookmarks) { index in
+                jump(to: index, animated: false)
+            }
         }
     }
 
-    // MARK: - Reader
+    // MARK: - Pages
 
-    private var readerContent: some View {
-        TabView(selection: $currentIndex) {
-            ForEach(Array(pages.enumerated()), id: \.offset) { index, image in
-                ZoomableImageView(image: image)
-                    .tag(index)
-                    .onTapGesture { toggleUI() }
-            }
+    @ViewBuilder
+    private var pages: some View {
+        let end = EndOfComicCard(comic: liveComic,
+                                 next: LibraryQuery.nextIssue(after: liveComic, in: library.comics),
+                                 openNext: { next in
+                                     close()
+                                     openNext(next)
+                                 },
+                                 close: close)
+        switch mode {
+        case .paged:
+            PagedReader(model: model, currentIndex: $currentIndex, groups: groups, isRightToLeft: isRightToLeft,
+                        fit: fit, liveText: liveText, onTap: handleTap(atFraction:), end: end)
+        case .vertical:
+            VerticalReader(model: model, currentIndex: $currentIndex, jumpToken: jumpToken,
+                           onTap: { setChrome(visible: !showChrome) }, end: end)
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        .environment(\.layoutDirection, isRightToLeft ? .rightToLeft : .leftToRight)
-        .onChange(of: currentIndex) { library.updateProgress(for: comic.id, page: $0) }
-        .onAppear { currentIndex = comic.currentPage; scheduleHide() }
     }
 
-    // MARK: - Overlay
+    private var openingView: some View {
+        VStack(spacing: 16) {
+            ProgressView().controlSize(.large).tint(.white)
+            Text(model.phase == .downloading ? "Downloading from iCloud…" : "Opening \(comic.displayTitle)…")
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.7))
+        }
+    }
 
-    private var overlayUI: some View {
-        VStack {
-            HStack {
-                Button { library.updateProgress(for: comic.id, page: currentIndex); dismiss() } label: {
-                    Image(systemName: "chevron.left").font(.title3.bold())
-                        .frame(width: 44, height: 44).background(.ultraThinMaterial, in: Circle())
-                }
-                Spacer()
-                Text(comic.title).font(.headline).lineLimit(1).foregroundStyle(.white).shadow(radius: 2)
-                Spacer()
-                Button { showSettings = true } label: {
-                    Image(systemName: "ellipsis.circle").font(.title3)
-                        .frame(width: 44, height: 44).background(.ultraThinMaterial, in: Circle())
-                }
-            }
-            .padding(.horizontal, 16).padding(.top, 56)
+    private func failureView(_ message: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 44))
+                .foregroundStyle(.orange)
+            Text("Couldn't open this comic")
+                .font(.headline)
+                .foregroundStyle(.white)
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(.white.opacity(0.6))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            Button("Back to Library") { close() }
+                .buttonStyle(.borderedProminent)
+                .padding(.top, 8)
+        }
+    }
 
-            Spacer()
+    // MARK: - Chrome
 
-            VStack(spacing: 8) {
-                if pages.count > 1 {
-                    HStack(spacing: 12) {
-                        Text("1").font(.caption2).foregroundStyle(.white.opacity(0.6))
-                        Slider(
-                            value: Binding(get: { Double(currentIndex) }, set: { currentIndex = Int($0.rounded()) }),
-                            in: 0...Double(max(pages.count - 1, 1)), step: 1
-                        ).tint(.white)
-                        Text("\(pages.count)").font(.caption2).foregroundStyle(.white.opacity(0.6))
-                    }
-                    .padding(.horizontal, 20)
-                }
-                HStack {
-                    Text(pages.isEmpty ? "" : "Page \(currentIndex + 1) of \(pages.count)")
-                        .font(.caption).foregroundStyle(.white.opacity(0.8))
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-            }
-            .padding(.bottom, 40)
-            .background(LinearGradient(colors: [.clear, .black.opacity(0.6)], startPoint: .top, endPoint: .bottom))
+    private var chrome: some View {
+        VStack(spacing: 0) {
+            topBar
+            Spacer(minLength: 0)
+            if model.phase == .ready { bottomBar }
         }
         .foregroundStyle(.white)
+        .opacity(showChrome ? 1 : 0)
+        .allowsHitTesting(showChrome)
     }
 
-    // MARK: - Helpers
+    private var topBar: some View {
+        HStack(spacing: 10) {
+            ChromeButton(systemImage: "chevron.backward", label: "Back") { close() }
 
-    private func toggleUI() {
-        withAnimation(.easeInOut(duration: 0.2)) { showUI.toggle() }
-        if showUI { scheduleHide() }
+            VStack(spacing: 2) {
+                Text(comic.displayTitle)
+                    .font(.headline)
+                    .lineLimit(1)
+                if model.pageCount > 0 {
+                    Text(isAtEnd ? "Finished" : "Page \(pageIndex + 1) of \(model.pageCount)")
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            if model.phase == .ready {
+                ChromeButton(systemImage: isBookmarked ? "bookmark.fill" : "bookmark",
+                             label: isBookmarked ? "Remove Bookmark" : "Add Bookmark",
+                             tint: isBookmarked ? .accentColor : .white) {
+                    library.toggleBookmark(comic.id, page: pageIndex)
+                    scheduleHide()
+                }
+                .disabled(isAtEnd)
+            }
+            ChromeButton(systemImage: "textformat.size", label: "Reader Settings") {
+                hideTask?.cancel()
+                showSettings = true
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 28)
+        .background(
+            LinearGradient(colors: [.black.opacity(0.8), .black.opacity(0)], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea(edges: .top)
+        )
+    }
+
+    private var bottomBar: some View {
+        VStack(spacing: 14) {
+            if model.pageCount > 1 {
+                HStack(spacing: 12) {
+                    Text(sliderReversed ? "\(model.pageCount)" : "1")
+                    Slider(value: sliderValue, in: 0...Double(model.pageCount - 1), step: 1) { editing in
+                        isScrubbing = editing
+                        if editing {
+                            hideTask?.cancel()
+                        } else {
+                            model.prefetch(around: currentIndex)
+                            jumpToken += 1
+                            scheduleHide()
+                        }
+                    }
+                    .tint(.white)
+                    Text(sliderReversed ? "1" : "\(model.pageCount)")
+                }
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.white.opacity(0.6))
+            }
+
+            HStack(spacing: 12) {
+                ChromeButton(systemImage: "square.grid.2x2", label: "All Pages", size: 36) {
+                    hideTask?.cancel()
+                    showPages = true
+                }
+                Label(modeDescription, systemImage: modeIcon)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.75))
+                Spacer()
+                Text("\(Int((liveComic.progress * 100).rounded()))% read")
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.white.opacity(0.75))
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 36)
+        .padding(.bottom, 12)
+        .background(
+            LinearGradient(colors: [.black.opacity(0), .black.opacity(0.85)], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea(edges: .bottom)
+        )
+    }
+
+    private var modeDescription: String {
+        switch mode {
+        case .vertical: return "Vertical scroll"
+        case .paged: return isRightToLeft ? "Right to left" : "Left to right"
+        }
+    }
+
+    private var modeIcon: String {
+        switch mode {
+        case .vertical: return "arrow.down"
+        case .paged: return isRightToLeft ? "arrow.left" : "arrow.right"
+        }
+    }
+
+    private var sliderValue: Binding<Double> {
+        Binding(
+            get: {
+                let index = Double(pageIndex)
+                return sliderReversed ? Double(model.pageCount - 1) - index : index
+            },
+            set: { value in
+                let position = Int(value.rounded())
+                currentIndex = sliderReversed ? model.pageCount - 1 - position : position
+            }
+        )
+    }
+
+    private var modeBinding: Binding<ReadingMode> {
+        Binding(get: { mode }, set: { newMode in
+            library.setReadingMode(comic.id, newMode)
+            defaultMode = newMode
+            jumpToken += 1
+        })
+    }
+
+    private var directionBinding: Binding<Bool> {
+        Binding(get: { isRightToLeft }, set: { rightToLeft in
+            library.setDirection(comic.id, rightToLeft: rightToLeft)
+            defaultRightToLeft = rightToLeft
+        })
+    }
+
+    /// Hidden buttons that give hardware keyboards arrow-key and space-bar page turns.
+    private var keyboardShortcuts: some View {
+        ZStack {
+            Button("Previous Page") { turnPage(towardLeft: true) }
+                .keyboardShortcut(.leftArrow, modifiers: [])
+            Button("Next Page") { turnPage(towardLeft: false) }
+                .keyboardShortcut(.rightArrow, modifiers: [])
+            Button("Forward") { step(1) }
+                .keyboardShortcut(.space, modifiers: [])
+            Button("Back") { step(-1) }
+                .keyboardShortcut(.space, modifiers: .shift)
+            Button("Close") { close() }
+                .keyboardShortcut(.cancelAction)
+        }
+        .frame(width: 0, height: 0)
+        .opacity(0)
+        .accessibilityHidden(true)
+    }
+
+    // MARK: - Actions
+
+    private func openComic() async {
+        library.markOpened(comic.id)
+        model.sizesForVerticalScroll = mode == .vertical
+        await model.open()
+        guard model.phase == .ready else { return }
+        library.didOpen(comic.id, pageCount: model.pageCount)
+        currentIndex = min(max(currentIndex, 0), model.pageCount - 1)
+        model.prefetch(around: currentIndex)
+        #if DEBUG
+        if DemoLaunch.showsEnd { currentIndex = model.pageCount; jumpToken += 1 }
+        switch DemoLaunch.sheet {
+        case "pages": showPages = true; return
+        case "settings": showSettings = true; return
+        default: break
+        }
+        if DemoLaunch.chrome == "hidden" { showChrome = false; return }
+        #endif
+        scheduleHide()
+    }
+
+    private func handleTap(atFraction x: CGFloat) {
+        guard tapToTurn else { return setChrome(visible: !showChrome) }
+        if x < 0.3 {
+            turnPage(towardLeft: true)
+        } else if x > 0.7 {
+            turnPage(towardLeft: false)
+        } else {
+            setChrome(visible: !showChrome)
+        }
+    }
+
+    private func turnPage(towardLeft: Bool) {
+        // The left edge goes back in left-to-right reading and forward in manga.
+        let forward = mode == .paged && isRightToLeft ? towardLeft : !towardLeft
+        step(forward ? 1 : -1)
+    }
+
+    /// Moves by `delta` pages (or spreads), including onto the end-of-comic card.
+    private func step(_ delta: Int) {
+        guard model.phase == .ready else { return }
+        if mode == .paged {
+            let groups = groups
+            guard let current = groups.firstIndex(where: { $0.contains(currentIndex) }),
+                  groups.indices.contains(current + delta) else { return }
+            jump(to: groups[current + delta][0], animated: true)
+        } else {
+            let target = currentIndex + delta
+            guard (0...model.pageCount).contains(target) else { return }
+            jump(to: target, animated: true)
+        }
+    }
+
+    private func jump(to index: Int, animated: Bool) {
+        if animated && mode == .paged {
+            withAnimation(.easeInOut(duration: 0.25)) { currentIndex = index }
+        } else {
+            currentIndex = index
+        }
+        jumpToken += 1
+    }
+
+    private func setChrome(visible: Bool) {
+        withAnimation(.easeInOut(duration: 0.2)) { showChrome = visible }
+        if visible { scheduleHide() } else { hideTask?.cancel() }
     }
 
     private func scheduleHide() {
         hideTask?.cancel()
+        #if DEBUG
+        if DemoLaunch.chrome == "visible" { return }
+        #endif
         hideTask = Task {
             try? await Task.sleep(nanoseconds: 3_000_000_000)
-            if !Task.isCancelled {
-                withAnimation(.easeOut(duration: 0.3)) { showUI = false }
-            }
+            guard !Task.isCancelled, !showSettings, !showPages, !isScrubbing else { return }
+            withAnimation(.easeOut(duration: 0.3)) { showChrome = false }
         }
     }
 
-    private func loadPages() async {
-        isLoading = true
-        do {
-            let url = library.fileURL(for: comic)
-            let rawPages = try await CBZService.shared.extractAllPages(from: url)
-            pages = rawPages.compactMap { UIImage(data: $0) }
-            currentIndex = min(comic.currentPage, max(0, pages.count - 1))
-        } catch {
-            loadError = error.localizedDescription
-        }
-        isLoading = false
+    private func close() {
+        library.updateProgress(for: comic.id, page: pageIndex)
+        dismiss()
     }
 }
 
-// MARK: - Zoomable Image
-
-struct ZoomableImageView: UIViewRepresentable {
-    let image: UIImage
-
-    func makeUIView(context: Context) -> UIScrollView {
-        let scrollView = UIScrollView()
-        scrollView.backgroundColor = .black
-        scrollView.minimumZoomScale = 1.0
-        scrollView.maximumZoomScale = 5.0
-        scrollView.showsHorizontalScrollIndicator = false
-        scrollView.showsVerticalScrollIndicator = false
-        scrollView.delegate = context.coordinator
-
-        let imageView = UIImageView(image: image)
-        imageView.contentMode = .scaleAspectFit
-        imageView.backgroundColor = .black
-        scrollView.addSubview(imageView)
-        context.coordinator.imageView = imageView
-
-        let doubleTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleDoubleTap(_:)))
-        doubleTap.numberOfTapsRequired = 2
-        scrollView.addGestureRecognizer(doubleTap)
-
-        return scrollView
-    }
-
-    func updateUIView(_ scrollView: UIScrollView, context: Context) {
-        context.coordinator.imageView?.image = image
-        guard let imageView = context.coordinator.imageView else { return }
-        imageView.frame = scrollView.bounds
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    class Coordinator: NSObject, UIScrollViewDelegate {
-        weak var imageView: UIImageView?
-
-        func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
-
-        func scrollViewDidZoom(_ scrollView: UIScrollView) {
-            guard let imageView else { return }
-            let offsetX = max((scrollView.bounds.width - imageView.frame.width) / 2, 0)
-            let offsetY = max((scrollView.bounds.height - imageView.frame.height) / 2, 0)
-            imageView.center = CGPoint(x: imageView.frame.width / 2 + offsetX, y: imageView.frame.height / 2 + offsetY)
-        }
-
-        @objc func handleDoubleTap(_ recognizer: UITapGestureRecognizer) {
-            guard let scrollView = recognizer.view as? UIScrollView else { return }
-            if scrollView.zoomScale > 1 {
-                scrollView.setZoomScale(1, animated: true)
-            } else {
-                let point = recognizer.location(in: imageView)
-                scrollView.zoom(to: CGRect(x: point.x - 60, y: point.y - 90, width: 120, height: 180), animated: true)
-            }
-        }
-    }
-}
-
-// MARK: - Settings Sheet
-
-struct ReaderSettingsSheet: View {
-    @Binding var isRightToLeft: Bool
-    @Environment(\.dismiss) private var dismiss
+private struct ChromeButton: View {
+    let systemImage: String
+    let label: String
+    var tint: Color = .white
+    var size: CGFloat = 42
+    let action: () -> Void
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Reading Direction") {
-                    Toggle("Right to Left (Manga)", isOn: $isRightToLeft)
-                }
-                Section { Text("PhilReader v1.0").foregroundStyle(.secondary) }
-            }
-            .navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: size * 0.4, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: size, height: size)
+                .background(.ultraThinMaterial, in: Circle())
+                .environment(\.colorScheme, .dark)
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 }
