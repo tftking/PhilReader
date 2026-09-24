@@ -15,6 +15,7 @@ struct ReaderView: View {
     @AppStorage("reader.fit") private var fit: PageFit = .screen
     @AppStorage("reader.spreads") private var spreadsInLandscape = true
     @AppStorage("reader.guided") private var guidedView = false
+    @AppStorage("reader.transition") private var transition: PageTransition = .slide
 
     /// Zero-based page; `pageCount` means the end-of-comic card.
     @State private var currentIndex: Int
@@ -110,7 +111,8 @@ struct ReaderView: View {
         }
         .onDisappear { library.updateProgress(for: comic.id, page: pageIndex) }
         .sheet(isPresented: $showSettings, onDismiss: scheduleHide) {
-            ReaderSettingsSheet(mode: modeBinding, isRightToLeft: directionBinding, guidedView: $guidedView, fit: $fit,
+            ReaderSettingsSheet(mode: modeBinding, isRightToLeft: directionBinding, guidedView: $guidedView,
+                                transition: $transition, fit: $fit,
                                 spreadsInLandscape: $spreadsInLandscape, background: $background,
                                 tapToTurn: $tapToTurn, liveText: $liveText)
                 .presentationDetents([.medium, .large])
@@ -136,7 +138,9 @@ struct ReaderView: View {
         switch mode {
         case .paged:
             PagedReader(model: model, currentIndex: $currentIndex, groups: groups, isRightToLeft: isRightToLeft,
-                        fit: fit, focus: focus, liveText: liveText, onTap: handleTap(atFraction:), end: end)
+                        fit: fit, focus: focus, liveText: liveText, transition: transition,
+                        onTap: handleTap(atFraction:),
+                        onSwipe: { fingerMovedLeft in turnPage(towardLeft: !fingerMovedLeft) }, end: end)
         case .vertical:
             VerticalReader(model: model, currentIndex: $currentIndex, jumpToken: jumpToken,
                            onTap: { setChrome(visible: !showChrome) }, end: end)
@@ -433,8 +437,8 @@ struct ReaderView: View {
     }
 
     private func jump(to index: Int, animated: Bool) {
-        if animated && mode == .paged {
-            withAnimation(.easeInOut(duration: 0.25)) { currentIndex = index }
+        if animated && mode == .paged && transition != .none {
+            withAnimation(.easeInOut(duration: transition == .fade ? 0.2 : 0.25)) { currentIndex = index }
         } else {
             currentIndex = index
         }

@@ -24,7 +24,8 @@ ship on their own; ✅ = done, 🚧 = in progress.
 - ✅ Reader background colour (black / dark grey / white)
 - ✅ Live Text: select, copy and translate text on pages
 - ✅ Keyboard page turns (arrows, space, shift-space, escape)
-- Later: fade / no-animation page transitions, zoom in vertical scroll mode
+- ✅ Page turns: slide, fade or none (swipe or tap in every mode)
+- Later: zoom in vertical scroll mode
 
 ## Phase 3 — Formats ✅
 - ✅ PDF (PDFKit), rendered at the size needed so pages stay sharp; title and author as metadata
