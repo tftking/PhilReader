@@ -48,19 +48,16 @@ struct LibraryView: View {
         } message: {
             Text(library.importError ?? "")
         }
-        .sheet(item: $infoComic, onDismiss: {
-            if let comic = pendingRead {
-                pendingRead = nil
-                open(comic)
-            }
-        }) { comic in
+        .sheet(item: $infoComic, onDismiss: openPendingComic) { comic in
             ComicDetailView(comicID: comic.id) { selected in
                 pendingRead = selected
                 infoComic = nil
             }
         }
-        .fullScreenCover(item: $readingComic) { comic in
-            ReaderView(comic: comic, fileURL: library.fileURL(for: comic))
+        .fullScreenCover(item: $readingComic, onDismiss: openPendingComic) { comic in
+            ReaderView(comic: comic, fileURL: library.fileURL(for: comic)) { next in
+                pendingRead = next
+            }
         }
         #if DEBUG
         .task { await prepareDemo() }
@@ -170,10 +167,18 @@ struct LibraryView: View {
         infoComic = comic
     }
 
+    /// Opens a comic chosen from a sheet or the reader once that has dismissed.
+    private func openPendingComic() {
+        guard let comic = pendingRead else { return }
+        pendingRead = nil
+        open(comic)
+    }
+
     #if DEBUG
     private func prepareDemo() async {
         await library.prepareDemoLibrary()
         if let title = DemoLaunch.openTitle, let comic = library.comics.first(where: { $0.title == title }) {
+            if let mode = DemoLaunch.mode { library.setReadingMode(comic.id, mode) }
             if let page = DemoLaunch.page { library.updateProgress(for: comic.id, page: max(page - 1, 0)) }
             readingComic = library.comic(withID: comic.id)
         } else if let title = DemoLaunch.infoTitle, let comic = library.comics.first(where: { $0.title == title }) {

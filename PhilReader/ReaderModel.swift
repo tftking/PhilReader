@@ -13,18 +13,35 @@ final class ReaderModel: ObservableObject {
     @Published private(set) var phase: Phase = .opening
     @Published private(set) var pageCount = 0
 
-    /// Longest side pages are decoded at. Large enough to stay sharp when
-    /// zoomed on any iPhone or iPad, small enough to cap oversized scans.
+    /// Longest side pages are decoded at in paged mode. Large enough to stay
+    /// sharp when zoomed on any iPhone or iPad, small enough to cap oversized scans.
     static let maxPixelSize: CGFloat = 3000
+    /// Width pages are decoded at in vertical mode, whatever their height.
+    static let verticalMaxWidth: CGFloat = 1600
+    static let thumbnailPixelSize: CGFloat = 360
+
+    /// Decode pages sized for continuous vertical scrolling instead of paging.
+    var sizesForVerticalScroll = false {
+        didSet {
+            guard sizesForVerticalScroll != oldValue else { return }
+            cache.removeAllObjects()
+            inFlight.values.forEach { $0.cancel() }
+            inFlight.removeAll()
+        }
+    }
 
     private let fileURL: URL
     private var document: CBZDocument?
     private let cache = NSCache<NSNumber, UIImage>()
+    private let thumbnails = NSCache<NSNumber, UIImage>()
     private var inFlight: [Int: Task<UIImage?, Never>] = [:]
+    /// Width / height of pages decoded so far, so layouts don't jump on reload.
+    private var aspectRatios: [Int: CGFloat] = [:]
 
     init(fileURL: URL) {
         self.fileURL = fileURL
         cache.totalCostLimit = 160 * 1024 * 1024
+        thumbnails.totalCostLimit = 40 * 1024 * 1024
     }
 
     func open() async {
@@ -46,18 +63,34 @@ final class ReaderModel: ObservableObject {
         cache.object(forKey: index as NSNumber)
     }
 
+    func aspectRatio(at index: Int) -> CGFloat? {
+        aspectRatios[index]
+    }
+
     func image(at index: Int) async -> UIImage? {
         if let image = cachedImage(at: index) { return image }
         if let task = inFlight[index] { return await task.value }
         guard let document else { return nil }
 
-        let task = Task { await document.image(at: index, maxPixelSize: Self.maxPixelSize) }
+        let vertical = sizesForVerticalScroll
+        let task = Task {
+            await document.image(at: index, maxPixelSize: Self.maxPixelSize,
+                                 maxWidth: vertical ? Self.verticalMaxWidth : nil)
+        }
         inFlight[index] = task
         let image = await task.value
-        inFlight[index] = nil
-        if let image {
-            cache.setObject(image, forKey: index as NSNumber, cost: image.memoryCost)
-        }
+        if inFlight[index] == task { inFlight[index] = nil }
+        guard let image, vertical == sizesForVerticalScroll else { return image }
+        if image.size.height > 0 { aspectRatios[index] = image.size.width / image.size.height }
+        cache.setObject(image, forKey: index as NSNumber, cost: image.memoryCost)
+        return image
+    }
+
+    func thumbnail(at index: Int) async -> UIImage? {
+        if let image = thumbnails.object(forKey: index as NSNumber) { return image }
+        guard let document else { return nil }
+        let image = await document.image(at: index, maxPixelSize: Self.thumbnailPixelSize)
+        if let image { thumbnails.setObject(image, forKey: index as NSNumber, cost: image.memoryCost) }
         return image
     }
 

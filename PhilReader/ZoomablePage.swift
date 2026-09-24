@@ -1,10 +1,13 @@
 import SwiftUI
 import UIKit
+import VisionKit
 
 /// A page image that supports pinch and double-tap zoom. Single taps are
 /// reported with their horizontal position (0 = left edge, 1 = right edge).
 struct ZoomablePage: UIViewRepresentable {
     let image: UIImage
+    /// Lets people long-press to select, copy and translate text on the page.
+    var liveText = false
     var onTap: (CGFloat) -> Void = { _ in }
 
     func makeUIView(context: Context) -> ZoomingPageView {
@@ -13,6 +16,7 @@ struct ZoomablePage: UIViewRepresentable {
 
     func updateUIView(_ view: ZoomingPageView, context: Context) {
         view.image = image
+        view.liveTextEnabled = liveText
         view.onTap = onTap
     }
 }
@@ -24,14 +28,31 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
         didSet {
             guard image !== oldValue else { return }
             imageView.image = image
+            analyzeForLiveText()
             setZoomScale(minimumZoomScale, animated: false)
             lastLayoutSize = .zero
             setNeedsLayout()
         }
     }
 
+    var liveTextEnabled = false {
+        didSet {
+            guard liveTextEnabled != oldValue else { return }
+            analyzeForLiveText()
+        }
+    }
+
     private let imageView = UIImageView()
     private var lastLayoutSize: CGSize = .zero
+
+    private static let analyzer: ImageAnalyzer? = ImageAnalyzer.isSupported ? ImageAnalyzer() : nil
+    private lazy var analysisInteraction: ImageAnalysisInteraction = {
+        let interaction = ImageAnalysisInteraction()
+        interaction.preferredInteractionTypes = .textSelection
+        interaction.isSupplementaryInterfaceHidden = true
+        return interaction
+    }()
+    private var analysisTask: Task<Void, Never>?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -70,6 +91,28 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
     }
 
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
+
+    /// Runs text recognition on the current page when Live Text is on.
+    private func analyzeForLiveText() {
+        analysisTask?.cancel()
+        guard let analyzer = Self.analyzer else { return }
+        guard liveTextEnabled, let image else {
+            analysisInteraction.analysis = nil
+            if analysisInteraction.view != nil { imageView.removeInteraction(analysisInteraction) }
+            return
+        }
+        if analysisInteraction.view == nil {
+            imageView.isUserInteractionEnabled = true
+            imageView.addInteraction(analysisInteraction)
+        }
+        analysisInteraction.analysis = nil
+        analysisTask = Task { [weak self] in
+            let configuration = ImageAnalyzer.Configuration([.text])
+            let analysis = try? await analyzer.analyze(image, configuration: configuration)
+            guard !Task.isCancelled, let self else { return }
+            self.analysisInteraction.analysis = analysis
+        }
+    }
 
     func scrollViewDidZoom(_ scrollView: UIScrollView) { centerContent() }
 

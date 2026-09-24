@@ -2,28 +2,49 @@ import SwiftUI
 
 struct ReaderView: View {
     let comic: ComicBook
+    var openNext: (ComicBook) -> Void = { _ in }
 
     @EnvironmentObject private var library: LibraryManager
     @Environment(\.dismiss) private var dismiss
     @StateObject private var model: ReaderModel
-    @AppStorage("reader.rightToLeft") private var isRightToLeft = true
+    @AppStorage("reader.rightToLeft") private var defaultRightToLeft = true
+    @AppStorage("reader.mode") private var defaultMode: ReadingMode = .paged
+    @AppStorage("reader.background") private var background: ReaderBackground = .black
     @AppStorage("reader.tapToTurn") private var tapToTurn = true
+    @AppStorage("reader.liveText") private var liveText = true
 
+    /// Zero-based page; `pageCount` means the end-of-comic card.
     @State private var currentIndex: Int
+    @State private var jumpToken = 0
     @State private var showChrome = true
     @State private var isScrubbing = false
     @State private var showSettings = false
+    @State private var showPages = false
     @State private var hideTask: Task<Void, Never>?
 
-    init(comic: ComicBook, fileURL: URL) {
+    init(comic: ComicBook, fileURL: URL, openNext: @escaping (ComicBook) -> Void = { _ in }) {
         self.comic = comic
+        self.openNext = openNext
         _model = StateObject(wrappedValue: ReaderModel(fileURL: fileURL))
         _currentIndex = State(initialValue: comic.currentPage)
     }
 
+    // MARK: - Derived state
+
+    private var liveComic: ComicBook { library.comic(withID: comic.id) ?? comic }
+    private var mode: ReadingMode { liveComic.readingMode ?? defaultMode }
+    private var isRightToLeft: Bool {
+        liveComic.readsRightToLeft ?? liveComic.metadata?.readsRightToLeft ?? defaultRightToLeft
+    }
+    /// The slider follows the swipe direction: reversed only for right-to-left paging.
+    private var sliderReversed: Bool { mode == .paged && isRightToLeft }
+    private var pageIndex: Int { min(currentIndex, max(model.pageCount - 1, 0)) }
+    private var isAtEnd: Bool { model.pageCount > 0 && currentIndex >= model.pageCount }
+    private var isBookmarked: Bool { liveComic.bookmarks.contains(pageIndex) }
+
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            background.color.ignoresSafeArea()
 
             switch model.phase {
             case .opening:
@@ -31,10 +52,13 @@ struct ReaderView: View {
             case .failed(let message):
                 failureView(message)
             case .ready:
-                pager.ignoresSafeArea()
+                pages
+                    .ignoresSafeArea()
+                    .environment(\.colorScheme, background.colorScheme)
             }
 
             chrome
+            keyboardShortcuts
         }
         .statusBarHidden(!showChrome)
         .persistentSystemOverlays(showChrome ? .automatic : .hidden)
@@ -43,34 +67,43 @@ struct ReaderView: View {
             library.updateProgress(for: comic.id, page: index)
             guard !isScrubbing else { return }
             model.prefetch(around: index)
-            if showChrome { setChrome(visible: false) }
+            if showChrome && !showPages && !showSettings { setChrome(visible: false) }
         }
-        .onDisappear { library.updateProgress(for: comic.id, page: currentIndex) }
-        .sheet(isPresented: $showSettings) {
-            ReaderSettingsSheet(isRightToLeft: $isRightToLeft, tapToTurn: $tapToTurn)
-                .presentationDetents([.medium])
-                .environment(\.colorScheme, .dark)
+        .onChange(of: mode) { newMode in
+            model.sizesForVerticalScroll = newMode == .vertical
+        }
+        .onDisappear { library.updateProgress(for: comic.id, page: pageIndex) }
+        .sheet(isPresented: $showSettings, onDismiss: scheduleHide) {
+            ReaderSettingsSheet(mode: modeBinding, isRightToLeft: directionBinding, background: $background,
+                                tapToTurn: $tapToTurn, liveText: $liveText)
+                .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showPages, onDismiss: scheduleHide) {
+            PageBrowserView(model: model, currentIndex: pageIndex, bookmarks: liveComic.bookmarks) { index in
+                jump(to: index, animated: false)
+            }
         }
     }
 
     // MARK: - Pages
 
-    /// Pages in on-screen order. For right-to-left reading the order is
-    /// reversed, so swiping right moves forward like a printed manga.
-    private var displayOrder: [Int] {
-        let indices = Array(0..<model.pageCount)
-        return isRightToLeft ? indices.reversed() : indices
-    }
-
-    private var pager: some View {
-        TabView(selection: $currentIndex) {
-            ForEach(displayOrder, id: \.self) { index in
-                PageView(index: index, model: model, onTap: handleTap(atFraction:))
-                    .tag(index)
-            }
+    @ViewBuilder
+    private var pages: some View {
+        let end = EndOfComicCard(comic: liveComic,
+                                 next: LibraryQuery.nextIssue(after: liveComic, in: library.comics),
+                                 openNext: { next in
+                                     close()
+                                     openNext(next)
+                                 },
+                                 close: close)
+        switch mode {
+        case .paged:
+            PagedReader(model: model, currentIndex: $currentIndex, isRightToLeft: isRightToLeft,
+                        liveText: liveText, onTap: handleTap(atFraction:), end: end)
+        case .vertical:
+            VerticalReader(model: model, currentIndex: $currentIndex, jumpToken: jumpToken,
+                           onTap: { setChrome(visible: !showChrome) }, end: end)
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        .id(isRightToLeft)
     }
 
     private var openingView: some View {
@@ -115,7 +148,7 @@ struct ReaderView: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             ChromeButton(systemImage: "chevron.backward", label: "Back") { close() }
 
             VStack(spacing: 2) {
@@ -123,7 +156,7 @@ struct ReaderView: View {
                     .font(.headline)
                     .lineLimit(1)
                 if model.pageCount > 0 {
-                    Text("Page \(currentIndex + 1) of \(model.pageCount)")
+                    Text(isAtEnd ? "Finished" : "Page \(pageIndex + 1) of \(model.pageCount)")
                         .font(.caption)
                         .monospacedDigit()
                         .foregroundStyle(.white.opacity(0.7))
@@ -131,7 +164,17 @@ struct ReaderView: View {
             }
             .frame(maxWidth: .infinity)
 
+            if model.phase == .ready {
+                ChromeButton(systemImage: isBookmarked ? "bookmark.fill" : "bookmark",
+                             label: isBookmarked ? "Remove Bookmark" : "Add Bookmark",
+                             tint: isBookmarked ? .accentColor : .white) {
+                    library.toggleBookmark(comic.id, page: pageIndex)
+                    scheduleHide()
+                }
+                .disabled(isAtEnd)
+            }
             ChromeButton(systemImage: "textformat.size", label: "Reader Settings") {
+                hideTask?.cancel()
                 showSettings = true
             }
         }
@@ -145,35 +188,41 @@ struct ReaderView: View {
     }
 
     private var bottomBar: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
             if model.pageCount > 1 {
                 HStack(spacing: 12) {
-                    Text(isRightToLeft ? "\(model.pageCount)" : "1")
+                    Text(sliderReversed ? "\(model.pageCount)" : "1")
                     Slider(value: sliderValue, in: 0...Double(model.pageCount - 1), step: 1) { editing in
                         isScrubbing = editing
                         if editing {
                             hideTask?.cancel()
                         } else {
                             model.prefetch(around: currentIndex)
+                            jumpToken += 1
                             scheduleHide()
                         }
                     }
                     .tint(.white)
-                    Text(isRightToLeft ? "1" : "\(model.pageCount)")
+                    Text(sliderReversed ? "1" : "\(model.pageCount)")
                 }
                 .font(.caption2.monospacedDigit())
                 .foregroundStyle(.white.opacity(0.6))
             }
 
-            HStack {
-                Label(isRightToLeft ? "Right to left" : "Left to right",
-                      systemImage: isRightToLeft ? "arrow.left" : "arrow.right")
+            HStack(spacing: 12) {
+                ChromeButton(systemImage: "square.grid.2x2", label: "All Pages", size: 36) {
+                    hideTask?.cancel()
+                    showPages = true
+                }
+                Label(modeDescription, systemImage: modeIcon)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.75))
                 Spacer()
-                Text("\(Int((progress * 100).rounded()))% read")
+                Text("\(Int((liveComic.progress * 100).rounded()))% read")
+                    .font(.caption)
                     .monospacedDigit()
+                    .foregroundStyle(.white.opacity(0.75))
             }
-            .font(.caption)
-            .foregroundStyle(.white.opacity(0.75))
         }
         .padding(.horizontal, 20)
         .padding(.top, 36)
@@ -184,34 +233,83 @@ struct ReaderView: View {
         )
     }
 
-    /// The slider runs right-to-left for manga so it matches the swipe direction.
+    private var modeDescription: String {
+        switch mode {
+        case .vertical: return "Vertical scroll"
+        case .paged: return isRightToLeft ? "Right to left" : "Left to right"
+        }
+    }
+
+    private var modeIcon: String {
+        switch mode {
+        case .vertical: return "arrow.down"
+        case .paged: return isRightToLeft ? "arrow.left" : "arrow.right"
+        }
+    }
+
     private var sliderValue: Binding<Double> {
         Binding(
             get: {
-                let index = Double(currentIndex)
-                return isRightToLeft ? Double(model.pageCount - 1) - index : index
+                let index = Double(pageIndex)
+                return sliderReversed ? Double(model.pageCount - 1) - index : index
             },
             set: { value in
                 let position = Int(value.rounded())
-                currentIndex = isRightToLeft ? model.pageCount - 1 - position : position
+                currentIndex = sliderReversed ? model.pageCount - 1 - position : position
             }
         )
     }
 
-    private var progress: Double {
-        guard model.pageCount > 1 else { return 1 }
-        return Double(currentIndex) / Double(model.pageCount - 1)
+    private var modeBinding: Binding<ReadingMode> {
+        Binding(get: { mode }, set: { newMode in
+            library.setReadingMode(comic.id, newMode)
+            defaultMode = newMode
+            jumpToken += 1
+        })
+    }
+
+    private var directionBinding: Binding<Bool> {
+        Binding(get: { isRightToLeft }, set: { rightToLeft in
+            library.setDirection(comic.id, rightToLeft: rightToLeft)
+            defaultRightToLeft = rightToLeft
+        })
+    }
+
+    /// Hidden buttons that give hardware keyboards arrow-key and space-bar page turns.
+    private var keyboardShortcuts: some View {
+        ZStack {
+            Button("Previous Page") { turnPage(towardLeft: true) }
+                .keyboardShortcut(.leftArrow, modifiers: [])
+            Button("Next Page") { turnPage(towardLeft: false) }
+                .keyboardShortcut(.rightArrow, modifiers: [])
+            Button("Forward") { step(1) }
+                .keyboardShortcut(.space, modifiers: [])
+            Button("Back") { step(-1) }
+                .keyboardShortcut(.space, modifiers: .shift)
+            Button("Close") { close() }
+                .keyboardShortcut(.cancelAction)
+        }
+        .frame(width: 0, height: 0)
+        .opacity(0)
+        .accessibilityHidden(true)
     }
 
     // MARK: - Actions
 
     private func openComic() async {
         library.markOpened(comic.id)
+        model.sizesForVerticalScroll = mode == .vertical
         await model.open()
         guard model.phase == .ready else { return }
         currentIndex = min(max(currentIndex, 0), model.pageCount - 1)
         model.prefetch(around: currentIndex)
         #if DEBUG
+        if DemoLaunch.showsEnd { currentIndex = model.pageCount; jumpToken += 1 }
+        switch DemoLaunch.sheet {
+        case "pages": showPages = true; return
+        case "settings": showSettings = true; return
+        default: break
+        }
         if DemoLaunch.chrome == "hidden" { showChrome = false; return }
         #endif
         scheduleHide()
@@ -230,10 +328,24 @@ struct ReaderView: View {
 
     private func turnPage(towardLeft: Bool) {
         // The left edge goes back in left-to-right reading and forward in manga.
-        let step = towardLeft != isRightToLeft ? -1 : 1
-        let target = currentIndex + step
-        guard (0..<model.pageCount).contains(target) else { return }
-        withAnimation(.easeInOut(duration: 0.25)) { currentIndex = target }
+        let forward = mode == .paged && isRightToLeft ? towardLeft : !towardLeft
+        step(forward ? 1 : -1)
+    }
+
+    /// Moves by `delta` pages, including onto the end-of-comic card.
+    private func step(_ delta: Int) {
+        let target = currentIndex + delta
+        guard (0...model.pageCount).contains(target), model.phase == .ready else { return }
+        jump(to: target, animated: true)
+    }
+
+    private func jump(to index: Int, animated: Bool) {
+        if animated && mode == .paged {
+            withAnimation(.easeInOut(duration: 0.25)) { currentIndex = index }
+        } else {
+            currentIndex = index
+        }
+        jumpToken += 1
     }
 
     private func setChrome(visible: Bool) {
@@ -248,142 +360,34 @@ struct ReaderView: View {
         #endif
         hideTask = Task {
             try? await Task.sleep(nanoseconds: 3_000_000_000)
-            guard !Task.isCancelled, !showSettings, !isScrubbing else { return }
+            guard !Task.isCancelled, !showSettings, !showPages, !isScrubbing else { return }
             withAnimation(.easeOut(duration: 0.3)) { showChrome = false }
         }
     }
 
     private func close() {
-        library.updateProgress(for: comic.id, page: currentIndex)
+        library.updateProgress(for: comic.id, page: pageIndex)
         dismiss()
-    }
-}
-
-// MARK: - Page
-
-private struct PageView: View {
-    let index: Int
-    let model: ReaderModel
-    let onTap: (CGFloat) -> Void
-
-    @State private var image: UIImage?
-    @State private var failed = false
-
-    init(index: Int, model: ReaderModel, onTap: @escaping (CGFloat) -> Void) {
-        self.index = index
-        self.model = model
-        self.onTap = onTap
-        _image = State(initialValue: model.cachedImage(at: index))
-    }
-
-    var body: some View {
-        ZStack {
-            if let image {
-                ZoomablePage(image: image, onTap: onTap)
-                    .transition(.opacity)
-            } else {
-                GeometryReader { proxy in
-                    PagePlaceholder(number: index + 1, failed: failed)
-                        .contentShape(Rectangle())
-                        .gesture(SpatialTapGesture().onEnded { tap in
-                            onTap(tap.location.x / max(proxy.size.width, 1))
-                        })
-                }
-            }
-        }
-        .environment(\.layoutDirection, .leftToRight)
-        .task(id: index) {
-            guard image == nil else { return }
-            let loaded = await model.image(at: index)
-            withAnimation(.easeOut(duration: 0.25)) {
-                image = loaded
-                failed = loaded == nil
-            }
-        }
-    }
-}
-
-private struct PagePlaceholder: View {
-    let number: Int
-    let failed: Bool
-
-    var body: some View {
-        VStack(spacing: 14) {
-            if failed {
-                Image(systemName: "photo.badge.exclamationmark")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.white.opacity(0.5))
-                Text("This page couldn't be displayed")
-                    .font(.footnote)
-                    .foregroundStyle(.white.opacity(0.5))
-            } else {
-                ProgressView().tint(.white.opacity(0.7))
-            }
-            Text("\(number)")
-                .font(.system(size: 56, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.12))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(.white.opacity(0.04))
-                .padding(.horizontal, 24)
-                .padding(.vertical, 72)
-        )
     }
 }
 
 private struct ChromeButton: View {
     let systemImage: String
     let label: String
+    var tint: Color = .white
+    var size: CGFloat = 42
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 17, weight: .semibold))
-                .frame(width: 42, height: 42)
+                .font(.system(size: size * 0.4, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: size, height: size)
                 .background(.ultraThinMaterial, in: Circle())
                 .environment(\.colorScheme, .dark)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
-    }
-}
-
-// MARK: - Settings
-
-struct ReaderSettingsSheet: View {
-    @Binding var isRightToLeft: Bool
-    @Binding var tapToTurn: Bool
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    Picker("Reading Direction", selection: $isRightToLeft) {
-                        Text("Right to Left").tag(true)
-                        Text("Left to Right").tag(false)
-                    }
-                    .pickerStyle(.segmented)
-                } header: {
-                    Text("Reading Direction")
-                } footer: {
-                    Text("Right to left is the traditional layout for manga.")
-                }
-
-                Section {
-                    Toggle("Tap Edges to Turn Pages", isOn: $tapToTurn)
-                } footer: {
-                    Text("Tap the middle of a page to show or hide the controls. Double-tap or pinch to zoom.")
-                }
-            }
-            .navigationTitle("Reader Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
-            }
-        }
     }
 }

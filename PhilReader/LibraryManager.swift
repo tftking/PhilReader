@@ -55,6 +55,8 @@ final class LibraryManager: ObservableObject {
 
     func updateProgress(for id: UUID, page: Int) {
         update(id) { comic in
+            let page = min(max(page, 0), max(comic.pageCount - 1, 0))
+            guard comic.currentPage != page || (!comic.isFinished && page == comic.pageCount - 1) else { return }
             comic.currentPage = page
             if comic.pageCount > 0 && page >= comic.pageCount - 1 { comic.isFinished = true }
         }
@@ -85,6 +87,25 @@ final class LibraryManager: ObservableObject {
             comic.isFinished = false
             comic.currentPage = 0
         }
+    }
+
+    func toggleBookmark(_ id: UUID, page: Int) {
+        update(id) { comic in
+            if let index = comic.bookmarks.firstIndex(of: page) {
+                comic.bookmarks.remove(at: index)
+            } else {
+                comic.bookmarks.append(page)
+                comic.bookmarks.sort()
+            }
+        }
+    }
+
+    func setReadingMode(_ id: UUID, _ mode: ReadingMode) {
+        update(id) { $0.readingMode = mode }
+    }
+
+    func setDirection(_ id: UUID, rightToLeft: Bool) {
+        update(id) { $0.readsRightToLeft = rightToLeft }
     }
 
     private func update(_ id: UUID, _ change: (inout ComicBook) -> Void) {

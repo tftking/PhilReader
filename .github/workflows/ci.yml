@@ -85,6 +85,10 @@ jobs:
           shoot 3-reader-cover -demoOpen "Midnight Ramen 1" -demoPage 1 -demoChrome visible
           shoot 4-reader-controls -demoOpen "Starfall 2" -demoPage 4 -demoChrome visible
           shoot 5-reader-page -demoOpen "Starfall 2" -demoPage 5 -demoChrome hidden
+          shoot 6-page-browser -demoOpen "Starfall 2" -demoPage 4 -demoSheet pages
+          shoot 7-reader-settings -demoOpen "Starfall 2" -demoPage 4 -demoSheet settings
+          shoot 8-vertical-scroll -demoOpen "Moonlit 1" -demoMode vertical -demoPage 2 -demoChrome visible
+          shoot 9-end-of-comic -demoOpen "Starfall 1" -demoEnd YES -demoChrome hidden
 
       - name: Upload screenshots
         if: always()

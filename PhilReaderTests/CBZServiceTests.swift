@@ -82,6 +82,24 @@ final class CBZServiceTests: XCTestCase {
         XCTAssertNil(broken)
     }
 
+    func testVerticalSizingLimitsWidthNotHeight() async throws {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let strip = UIGraphicsImageRenderer(size: CGSize(width: 200, height: 2000), format: format).pngData { context in
+            UIColor.darkGray.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 200, height: 2000))
+        }
+        let url = try makeCBZ([("strip.png", strip)])
+        let document = try CBZDocument(url: url)
+
+        let fitted = await document.image(at: 0, maxPixelSize: 1000)
+        XCTAssertEqual(fitted?.cgImage?.height, 1000, "Paged sizing caps the longest side")
+
+        let byWidth = await document.image(at: 0, maxPixelSize: 1000, maxWidth: 100)
+        XCTAssertEqual(byWidth?.cgImage?.width, 100, "Vertical sizing caps the width")
+        XCTAssertEqual(byWidth?.cgImage?.height, 1000)
+    }
+
     func testCoverIsFirstSortedPage() async throws {
         let url = try makeCBZ([
             ("chapter1/002.webp", Data("second".utf8)),

@@ -26,9 +26,9 @@ actor CBZDocument {
         return buffer
     }
 
-    func image(at index: Int, maxPixelSize: CGFloat) -> UIImage? {
+    func image(at index: Int, maxPixelSize: CGFloat, maxWidth: CGFloat? = nil) -> UIImage? {
         guard let data = try? pageData(at: index) else { return nil }
-        return ImageDownsampler.image(from: data, maxPixelSize: maxPixelSize)
+        return ImageDownsampler.image(from: data, maxPixelSize: maxPixelSize, maxWidth: maxWidth)
     }
 }
 
@@ -36,9 +36,20 @@ enum ImageDownsampler {
     /// Decodes image data at no more than `maxPixelSize` on its longest side.
     /// Decoding straight to the target size avoids ever materialising a
     /// full-resolution bitmap for oversized scans.
-    static func image(from data: Data, maxPixelSize: CGFloat) -> UIImage? {
+    ///
+    /// With `maxWidth`, the limit is instead set by width, so tall webtoon
+    /// strips stay sharp when shown at full screen width.
+    static func image(from data: Data, maxPixelSize: CGFloat, maxWidth: CGFloat? = nil) -> UIImage? {
         let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else { return nil }
+        var maxPixelSize = maxPixelSize
+        if let maxWidth,
+           let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+           let width = properties[kCGImagePropertyPixelWidth] as? CGFloat,
+           let height = properties[kCGImagePropertyPixelHeight] as? CGFloat, width > 0 {
+            let scale = min(1, maxWidth / width)
+            maxPixelSize = min(max(width, height) * scale, 8000)
+        }
         let options = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,

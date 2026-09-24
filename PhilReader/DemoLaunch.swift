@@ -29,5 +29,11 @@ enum DemoLaunch {
     static var page: Int? { defaults.object(forKey: "demoPage") == nil ? nil : defaults.integer(forKey: "demoPage") }
     /// "visible" keeps the reader controls on screen; "hidden" starts without them.
     static var chrome: String? { defaults.string(forKey: "demoChrome") }
+    /// Reading mode for the opened comic: "paged" or "vertical".
+    static var mode: ReadingMode? { defaults.string(forKey: "demoMode").flatMap { ReadingMode(rawValue: $0) } }
+    /// Opens a reader sheet: "pages" or "settings".
+    static var sheet: String? { defaults.string(forKey: "demoSheet") }
+    /// Starts on the end-of-comic card.
+    static var showsEnd: Bool { defaults.bool(forKey: "demoEnd") }
 }
 #endif

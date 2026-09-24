@@ -60,6 +60,14 @@ struct LibraryQuery {
         )
     }
 
+    /// The next issue of the same series in the library, by issue or volume number.
+    static func nextIssue(after comic: ComicBook, in comics: [ComicBook]) -> ComicBook? {
+        guard let series = comic.metadata?.series, let current = comic.issueOrder else { return nil }
+        return comics
+            .filter { $0.id != comic.id && $0.metadata?.series == series && ($0.issueOrder ?? -.infinity) > current }
+            .min { ($0.issueOrder ?? 0) < ($1.issueOrder ?? 0) }
+    }
+
     private static func comic(_ comic: ComicBook, matches term: String) -> Bool {
         let fields = [comic.displayTitle, comic.title, comic.metadata?.title, comic.metadata?.series,
                       comic.metadata?.writer, comic.metadata?.artist, comic.metadata?.publisher]

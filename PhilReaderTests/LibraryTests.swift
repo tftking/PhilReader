@@ -107,6 +107,18 @@ final class LibraryQueryTests: XCTestCase {
                        ["Akira", "Starfall #2", "Starfall #10"])
     }
 
+    func testNextIssueIsLowestLaterNumberInSameSeries() {
+        let one = comic("s1", metadata: ComicMetadata(series: "Starfall", number: "1"))
+        let three = comic("s3", metadata: ComicMetadata(series: "Starfall", number: "3"))
+        let two = comic("s2", metadata: ComicMetadata(series: "Starfall", number: "2"))
+        let other = comic("o2", metadata: ComicMetadata(series: "Moonlit", number: "2"))
+        let library = [three, other, one, two]
+        XCTAssertEqual(LibraryQuery.nextIssue(after: one, in: library)?.title, "s2")
+        XCTAssertEqual(LibraryQuery.nextIssue(after: two, in: library)?.title, "s3")
+        XCTAssertNil(LibraryQuery.nextIssue(after: three, in: library))
+        XCTAssertNil(LibraryQuery.nextIssue(after: comic("loose"), in: library))
+    }
+
     func testContinueReadingIsInProgressByLastOpened() {
         let comics = [
             comic("a", page: 2, opened: 10),
@@ -129,6 +141,9 @@ final class ComicBookCodingTests: XCTestCase {
         XCTAssertEqual(comics.first?.isFinished, false)
         XCTAssertNil(comics.first?.lastOpened)
         XCTAssertNil(comics.first?.metadata)
+        XCTAssertEqual(comics.first?.bookmarks, [])
+        XCTAssertNil(comics.first?.readingMode)
+        XCTAssertNil(comics.first?.readsRightToLeft)
         XCTAssertEqual(comics.first?.status, .inProgress)
     }
 

@@ -27,6 +27,9 @@
 		22222222222222222222227D /* ComicCoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111117D /* ComicCoverView.swift */; };
 		22222222222222222222227E /* ComicDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111117E /* ComicDetailView.swift */; };
 		666666666666666666666615 /* LibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666666666666616 /* LibraryTests.swift */; };
+		22222222222222222222227F /* ReaderPages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111117F /* ReaderPages.swift */; };
+		222222222222222222222280 /* PageBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111180 /* PageBrowserView.swift */; };
+		222222222222222222222281 /* ReaderSettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111181 /* ReaderSettingsSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -62,6 +65,9 @@
 		11111111111111111111117D /* ComicCoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComicCoverView.swift; sourceTree = "<group>"; };
 		11111111111111111111117E /* ComicDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComicDetailView.swift; sourceTree = "<group>"; };
 		666666666666666666666616 /* LibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryTests.swift; sourceTree = "<group>"; };
+		11111111111111111111117F /* ReaderPages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderPages.swift; sourceTree = "<group>"; };
+		111111111111111111111180 /* PageBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageBrowserView.swift; sourceTree = "<group>"; };
+		111111111111111111111181 /* ReaderSettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderSettingsSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -110,6 +116,9 @@
 				11111111111111111111117C /* LibraryQuery.swift */,
 				11111111111111111111117D /* ComicCoverView.swift */,
 				11111111111111111111117E /* ComicDetailView.swift */,
+				11111111111111111111117F /* ReaderPages.swift */,
+				111111111111111111111180 /* PageBrowserView.swift */,
+				111111111111111111111181 /* ReaderSettingsSheet.swift */,
 				111111111111111111111101 /* Info.plist */,
 				111111111111111111111102 /* Assets.xcassets */,
 			);
@@ -247,6 +256,9 @@
 				22222222222222222222227C /* LibraryQuery.swift in Sources */,
 				22222222222222222222227D /* ComicCoverView.swift in Sources */,
 				22222222222222222222227E /* ComicDetailView.swift in Sources */,
+				22222222222222222222227F /* ReaderPages.swift in Sources */,
+				222222222222222222222280 /* PageBrowserView.swift in Sources */,
+				222222222222222222222281 /* ReaderSettingsSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
