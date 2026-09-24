@@ -75,6 +75,8 @@ struct ComicsGridScreen: View {
         }
         .navigationTitle(isSelecting ? "\(selection.count) Selected" : title)
         .toolbar { toolbar }
+        // The selection actions take the bottom bar's place.
+        .toolbar(isSelecting ? .hidden : .visible, for: .tabBar)
         .overlay { if isDropTargeted { DropTargetOverlay() } }
         .dropDestination(for: URL.self) { urls, _ in
             Task { for url in urls { await library.importComic(from: url) } }

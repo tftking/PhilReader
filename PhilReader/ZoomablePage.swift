@@ -23,6 +23,7 @@ struct ZoomablePage: UIViewRepresentable {
         view.focusRect = focusRect
         view.liveTextEnabled = liveText
         view.onTap = onTap
+        view.filters = context.environment.pageFilters
         view.pullToClose = context.environment.pullToClose
         view.doubleTapScale = context.environment.doubleTapScale
     }
@@ -47,11 +48,19 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
     var image: UIImage? {
         didSet {
             guard image !== oldValue else { return }
-            imageView.image = image
+            applyFilters()
             analyzeForLiveText()
             setZoomScale(minimumZoomScale, animated: false)
             lastLayoutSize = .zero
             setNeedsLayout()
+        }
+    }
+
+    /// Brightness, contrast and tone adjustments; `nil` shows the page as scanned.
+    var filters: ImageFilterSettings? {
+        didSet {
+            guard filters != oldValue else { return }
+            applyFilters()
         }
     }
 
@@ -98,6 +107,7 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
         return interaction
     }()
     private var analysisTask: Task<Void, Never>?
+    private var filterTask: Task<Void, Never>?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -166,6 +176,22 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
 
     /// Runs text recognition on the current page when Live Text is on.
+    /// Shows the page, filtered off the main thread when filters are on.
+    private func applyFilters() {
+        filterTask?.cancel()
+        guard let image, let filters, !filters.isOriginal else {
+            imageView.image = image
+            return
+        }
+        filterTask = Task { [weak self] in
+            let filtered = await Task.detached(priority: .userInitiated) {
+                PageFilterRenderer.render(image, with: filters)
+            }.value
+            guard let self, !Task.isCancelled, self.image === image, self.filters == filters else { return }
+            self.imageView.image = filtered ?? image
+        }
+    }
+
     private func analyzeForLiveText() {
         analysisTask?.cancel()
         guard let analyzer = Self.analyzer else { return }

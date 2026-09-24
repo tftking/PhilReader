@@ -1,3 +1,5 @@
+import CoreImage
+import CoreImage.CIFilterBuiltins
 import SwiftUI
 
 // MARK: - Gestures and zoom
@@ -140,6 +142,43 @@ extension View {
         } else {
             self
         }
+    }
+}
+
+/// Applies image filters to a page bitmap with Core Image, for pages drawn by UIKit.
+enum PageFilterRenderer {
+    private static let context = CIContext(options: [.cacheIntermediates: false])
+
+    static func render(_ image: UIImage, with filters: ImageFilterSettings) -> UIImage? {
+        guard let cgImage = image.cgImage else { return nil }
+        var output = CIImage(cgImage: cgImage)
+
+        let controls = CIFilter.colorControls()
+        controls.inputImage = output
+        controls.brightness = Float(filters.brightness)
+        controls.contrast = Float(filters.contrast)
+        controls.saturation = filters.tone == .original ? 1 : 0
+        output = controls.outputImage ?? output
+
+        switch filters.tone {
+        case .sepia:
+            let sepia = CIFilter.sepiaTone()
+            sepia.inputImage = output
+            sepia.intensity = 0.85
+            output = sepia.outputImage ?? output
+        case .night:
+            let invert = CIFilter.colorInvert()
+            invert.inputImage = output
+            let dim = CIFilter.colorControls()
+            dim.inputImage = invert.outputImage ?? output
+            dim.brightness = -0.1
+            output = dim.outputImage ?? output
+        case .original, .grayscale:
+            break
+        }
+
+        guard let rendered = context.createCGImage(output, from: output.extent) else { return nil }
+        return UIImage(cgImage: rendered, scale: image.scale, orientation: image.imageOrientation)
     }
 }
 

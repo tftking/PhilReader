@@ -163,9 +163,11 @@ private struct HeroCard: View {
                     .aspectRatio(0.82, contentMode: .fit)
                     .overlay {
                         if let cover {
+                            // Pinned to the top so the cover's title stays in view.
                             Image(uiImage: cover)
                                 .resizable()
                                 .scaledToFill()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                                 .transition(.opacity)
                         }
                     }

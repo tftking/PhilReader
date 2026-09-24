@@ -115,9 +115,9 @@ jobs:
           shoot 21-readers-settings -demoTab settings -demoSettings readers
           shoot 22-reader-scrub -demoOpen "Starfall 1" -demoMode paged -demoPage 6 -demoChrome visible -demoScrub YES
           shoot 23-gestures -demoTab settings -demoSettings gestures
-          shoot 24-filters -demoTab settings -demoSettings filters -reader.filtersEnabled YES -reader.filters '{"brightness":0.05,"contrast":1.15,"tone":"sepia"}'
+          shoot 24-filters -demoTab settings -demoSettings filters -demoTone sepia
           shoot 25-presets -demoTab settings -demoSettings presets
-          shoot 26-reader-sepia -demoOpen "Starfall 2" -demoMode paged -demoPage 5 -demoChrome hidden -reader.filtersEnabled YES -reader.filters '{"brightness":0.05,"contrast":1.15,"tone":"sepia"}'
+          shoot 26-reader-sepia -demoOpen "Starfall 2" -demoMode paged -demoPage 5 -demoChrome hidden -demoTone sepia
           shoot 27-avoid-margins -demoOpen "Starfall 2" -demoMode paged -demoPage 5 -demoChrome hidden -reader.avoidMargins YES
 
           # Web server: open it in the app, then upload from this machine as a computer's browser would.

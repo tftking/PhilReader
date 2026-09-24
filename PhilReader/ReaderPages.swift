@@ -20,8 +20,6 @@ struct PagedReader: View {
     var onSwipe: (Bool) -> Void = { _ in }
     let end: EndOfComicCard
 
-    @Environment(\.pageFilters) private var filters
-
     /// Groups in on-screen order. For right-to-left reading the order is
     /// reversed, so swiping right moves forward like a printed manga.
     private var displayGroups: [[Int]] {
@@ -72,12 +70,10 @@ struct PagedReader: View {
             // A spread is drawn left to right, so manga puts the later page on the left.
             SpreadView(pages: isRightToLeft ? group.reversed() : group, model: model,
                        fit: fit, liveText: liveText, onTap: onTap)
-                .pageFilters(filters)
         } else {
             PageView(index: group[0], model: model, fit: fit,
                      focusRect: focus?.page == group[0] ? focus?.rect : nil,
                      liveText: liveText, onTap: onTap)
-                .pageFilters(filters)
         }
     }
 }

@@ -122,6 +122,15 @@ struct ContentView: View {
 
     #if DEBUG
     private func prepareDemo() async {
+        if let tone = DemoLaunch.filterTone {
+            let filters = ImageFilterSettings(brightness: 0.03, contrast: 1.15, tone: tone)
+            UserDefaults.standard.set(StoredFilters(filters).rawValue, forKey: ReaderKeys.filters)
+            UserDefaults.standard.set(true, forKey: ReaderKeys.filtersEnabled)
+        } else if DemoLaunch.importsLibrary {
+            // Demo launches share one install, so a filtered shot mustn't tint the next one.
+            UserDefaults.standard.removeObject(forKey: ReaderKeys.filters)
+            UserDefaults.standard.removeObject(forKey: ReaderKeys.filtersEnabled)
+        }
         await library.prepareDemoLibrary()
         if let title = DemoLaunch.openTitle, let comic = library.comics.first(where: { $0.title == title }) {
             if let mode = DemoLaunch.mode { library.setReadingMode(comic.id, mode) }
