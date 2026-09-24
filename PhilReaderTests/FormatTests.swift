@@ -87,16 +87,26 @@ final class FormatTests: XCTestCase {
 
     func testCB7PagesAndMetadata() async throws {
         let url = tempDir.appendingPathComponent("\(UUID().uuidString).cb7")
-        try Data(base64Encoded: Fixtures.sevenZip.joined())!.write(to: url)
         defer { ExtractedArchive.remove(for: url) }
-        try await assertSolidArchive(url)
+        try await assertSolidArchive(url, fixture: Fixtures.sevenZip)
     }
 
     func testCBRPagesAndMetadata() async throws {
         let url = tempDir.appendingPathComponent("\(UUID().uuidString).cbr")
-        try Data(base64Encoded: Fixtures.rar.joined())!.write(to: url)
         defer { ExtractedArchive.remove(for: url) }
-        try await assertSolidArchive(url)
+        try await assertSolidArchive(url, fixture: Fixtures.rar)
+    }
+
+    func testSevenZipExtractorWritesPagesOnly() throws {
+        let archive = tempDir.appendingPathComponent("\(UUID().uuidString).cb7")
+        let folder = tempDir.appendingPathComponent("out", isDirectory: true)
+        try step("write fixture") { try Data(base64Encoded: Fixtures.sevenZip.joined())!.write(to: archive) }
+        try step("create folder") { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
+        try step("extract") { try SevenZipExtractor.extract(archive, into: folder) }
+        let written = try step("list") { try FileManager.default.subpathsOfDirectory(atPath: folder.path).sorted() }
+        XCTAssertEqual(written.filter { $0.hasSuffix(".png") || $0.hasSuffix(".xml") },
+                       ["ComicInfo.xml", "pages/10.png", "pages/2.png", "pages/extra/1.png"])
+        XCTAssertFalse(written.contains("notes.txt"))
     }
 
     func testCorruptCBRThrows() throws {
@@ -108,8 +118,10 @@ final class FormatTests: XCTestCase {
 
     /// Both fixtures hold pages/10.png (20px wide), pages/2.png (10px), pages/extra/1.png (30px),
     /// notes.txt and ComicInfo.xml for Starfall #4.
-    private func assertSolidArchive(_ url: URL, file: StaticString = #filePath, line: UInt = #line) async throws {
-        let source = try ComicSources.open(url)
+    private func assertSolidArchive(_ url: URL, fixture: [String],
+                                    file: StaticString = #filePath, line: UInt = #line) async throws {
+        try step("write fixture") { try Data(base64Encoded: fixture.joined())!.write(to: url) }
+        let source = try step("open") { try ComicSources.open(url) }
         XCTAssertEqual(source.pageCount, 3, file: file, line: line)
         var widths: [Int?] = []
         for index in 0..<source.pageCount {
@@ -123,7 +135,19 @@ final class FormatTests: XCTestCase {
         XCTAssertEqual(metadata?.number, "4", file: file, line: line)
 
         // A second open reuses the unpacked folder.
-        XCTAssertEqual(try ComicSources.open(url).pageCount, 3, file: file, line: line)
+        XCTAssertEqual(try step("reopen") { try ComicSources.open(url) }.pageCount, 3, file: file, line: line)
+    }
+
+    /// Runs one step, failing with the step's name and the full error so CI logs say exactly what broke.
+    @discardableResult
+    private func step<T>(_ name: String, file: StaticString = #filePath, line: UInt = #line,
+                         _ body: () throws -> T) throws -> T {
+        do {
+            return try body()
+        } catch {
+            XCTFail("\(name) failed: \(error) \((error as NSError).userInfo)", file: file, line: line)
+            throw error
+        }
     }
 
     // MARK: - Helpers
@@ -170,16 +194,16 @@ final class FormatTests: XCTestCase {
     }
 }
 
-/// Tiny archives made with py7zr (7-Zip, LZMA2) and a hand-built stored RAR5
+/// Tiny archives made with py7zr (7-Zip, LZMA2 only, no BCJ filter) and a hand-built stored RAR5
 /// (verified with Python's rarfile), since neither format can be written on iOS.
 private enum Fixtures {
     static let sevenZip = [
-        "N3q8ryccAASOnqKUcwEAAAAAAAAXAAAAAAAAAC+oV53gASQAtV0ARJQFxHon9vfuiY5QkIizqtVQJVKKnK/FRCMRZhU/580b",
+        "N3q8ryccAAQ0aNw0cQEAAAAAAAAXAAAAAAAAAFjXyw/gASQAtV0ARJQFxHon9vfuiY5QkIizqtVQJVKKnK/FRCMRZhU/580b",
         "WLhSEifFVUh4LM9XCtD6nQlSLt3ZI4euuluLJYXLkCO2Ea7gPUAdxgMpzkii59D4DJcw+AKg6isefJNajrDaPFhIhziOInm3",
         "oHlEUnB3pumHKvMde/dj+4FDZSEzpMuiHvKavkmEIrNGSW4VfzXINIcJEgCH6LTz8t5HuRRpieFl9O+AFiGOtS6AXAuthoHW",
-        "q0DvAADgARMArl0AAIEzB64P1TEBfFck0c/j92TRWslv34CaU9m7befAOzUEnXxvaKoCe9TJmLn1CKbM62xYUm946iCs5p7E",
-        "D/z5l75EAMEfGzcqMLrfI9EfwX9rfPD+n1egU/zq1SIuQ2nTYma7rAptgWngC5KZOLc5pPBPrsvZA7G+k6vetdrQqmfC677x",
-        "ey32miL9XtZvQWdzPb9mnHOEgvKMe0KkDI2KITarCCCN0Z42WN2K8AAAABcGgL0BCYC2AAcLAQABISEBGAyBFAAA",
+        "q0DvAADgAQcArF0AAIEzB64P1TEBfFck0/6zcBaxhoj/bxiLD/TAFsyV5qnmNrAEEnRly8fp2XTfLF4fXqZ++qEykfrMc3II",
+        "zGqlZKu5FLIAlw+mpHUdRzNKsVJoS6E9aB5s4Hza4RTdEwNY7fnMANDD0m1crHfKLN5lNpjCyLe3S1BeA78A9cV9EftKbMSO",
+        "iP717bCiD5qVjtgg1qmO+n+JeFlQ5QwaPlkECiXoKX7AFRqREAAAAAAXBoC9AQmAtAAHCwEAASEhARgMgQgAAA==",
     ]
 
     static let rar = [

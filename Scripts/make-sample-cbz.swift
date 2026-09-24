@@ -188,7 +188,7 @@ case "cb7":
     let tar = Process()
     tar.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
     tar.currentDirectoryURL = workDir
-    tar.arguments = ["--format", "7zip", "-cf", outputURL.path] + files
+    tar.arguments = ["--format", "7zip", "--options", "7zip:compression=lzma2", "-cf", outputURL.path] + files
     try tar.run()
     tar.waitUntilExit()
     try? FileManager.default.removeItem(at: workDir)
