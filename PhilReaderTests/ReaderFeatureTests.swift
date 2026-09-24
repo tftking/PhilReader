@@ -130,3 +130,18 @@ final class EPUBTests: XCTestCase {
         XCTAssertEqual(ComicFormat(url: URL(fileURLWithPath: "/x/Book.EPUB")), .epub)
     }
 }
+
+final class VerticalZoomTests: XCTestCase {
+    func testScaleStaysInRange() {
+        XCTAssertEqual(VerticalZoom.clampedScale(0.5), 1)
+        XCTAssertEqual(VerticalZoom.clampedScale(2.2), 2.2)
+        XCTAssertEqual(VerticalZoom.clampedScale(9), 3)
+    }
+
+    func testPanKeepsTheStripCoveringTheScreen() {
+        XCTAssertEqual(VerticalZoom.clampedPan(50, scale: 1, width: 400), 0, "No panning when not zoomed")
+        XCTAssertEqual(VerticalZoom.clampedPan(150, scale: 2, width: 400), 150)
+        XCTAssertEqual(VerticalZoom.clampedPan(500, scale: 2, width: 400), 200)
+        XCTAssertEqual(VerticalZoom.clampedPan(-500, scale: 3, width: 400), -400)
+    }
+}

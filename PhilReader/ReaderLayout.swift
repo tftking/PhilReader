@@ -23,6 +23,24 @@ enum PageTransition: String, CaseIterable, Identifiable {
     var label: String { rawValue.capitalized }
 }
 
+/// Zoom limits for continuous vertical scrolling, where the whole strip is
+/// scaled (pinch or double-tap) and panned sideways while zoomed.
+enum VerticalZoom {
+    static let range: ClosedRange<CGFloat> = 1...3
+    static let doubleTapScale: CGFloat = 2
+
+    static func clampedScale(_ scale: CGFloat) -> CGFloat {
+        min(max(scale, range.lowerBound), range.upperBound)
+    }
+
+    /// Keeps the zoomed strip covering the screen: at 2× a 400pt-wide strip
+    /// can move 200pt either way.
+    static func clampedPan(_ pan: CGFloat, scale: CGFloat, width: CGFloat) -> CGFloat {
+        let limit = max(0, width * (scale - 1) / 2)
+        return min(max(pan, -limit), limit)
+    }
+}
+
 enum SpreadLayout {
     /// Groups pages into two-page spreads like a printed book: the cover and
     /// any wide (already double-page) scans stand alone, everything else pairs up.
