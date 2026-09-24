@@ -11,6 +11,8 @@ struct PagedReader: View {
     let groups: [[Int]]
     let isRightToLeft: Bool
     let fit: PageFit
+    /// Guided view: the panel to zoom to on one page.
+    var focus: (page: Int, rect: CGRect)? = nil
     let liveText: Bool
     let onTap: (CGFloat) -> Void
     let end: EndOfComicCard
@@ -40,7 +42,9 @@ struct PagedReader: View {
                         SpreadView(pages: isRightToLeft ? group.reversed() : group, model: model,
                                    fit: fit, liveText: liveText, onTap: onTap)
                     } else {
-                        PageView(index: group[0], model: model, fit: fit, liveText: liveText, onTap: onTap)
+                        PageView(index: group[0], model: model, fit: fit,
+                                 focusRect: focus?.page == group[0] ? focus?.rect : nil,
+                                 liveText: liveText, onTap: onTap)
                     }
                 }
                 .tag(group[0])
@@ -55,16 +59,19 @@ private struct PageView: View {
     let index: Int
     let model: ReaderModel
     let fit: PageFit
+    let focusRect: CGRect?
     let liveText: Bool
     let onTap: (CGFloat) -> Void
 
     @State private var image: UIImage?
     @State private var failed = false
 
-    init(index: Int, model: ReaderModel, fit: PageFit, liveText: Bool, onTap: @escaping (CGFloat) -> Void) {
+    init(index: Int, model: ReaderModel, fit: PageFit, focusRect: CGRect?, liveText: Bool,
+         onTap: @escaping (CGFloat) -> Void) {
         self.index = index
         self.model = model
         self.fit = fit
+        self.focusRect = focusRect
         self.liveText = liveText
         self.onTap = onTap
         _image = State(initialValue: model.cachedImage(at: index))
@@ -73,7 +80,7 @@ private struct PageView: View {
     var body: some View {
         ZStack {
             if let image {
-                ZoomablePage(image: image, fit: fit, liveText: liveText, onTap: onTap)
+                ZoomablePage(image: image, fit: fit, focusRect: focusRect, liveText: liveText, onTap: onTap)
                     .transition(.opacity)
             } else {
                 TappablePlaceholder(number: index + 1, failed: failed, onTap: onTap)

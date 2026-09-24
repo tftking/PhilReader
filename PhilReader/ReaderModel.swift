@@ -38,6 +38,8 @@ final class ReaderModel: ObservableObject {
     private var inFlight: [Int: Task<UIImage?, Never>] = [:]
     /// Width / height of pages decoded so far, so layouts don't jump on reload.
     private var aspectRatios: [Int: CGFloat] = [:]
+    /// Detected panels per page and reading direction.
+    private var panelCache: [String: [CGRect]] = [:]
 
     init(fileURL: URL) {
         self.fileURL = fileURL
@@ -103,6 +105,18 @@ final class ReaderModel: ObservableObject {
         let image = await document.image(at: index, maxPixelSize: Self.thumbnailPixelSize, maxWidth: nil)
         if let image { thumbnails.setObject(image, forKey: index as NSNumber, cost: image.memoryCost) }
         return image
+    }
+
+    /// Panels on a page in reading order (normalised rects), for guided view.
+    func panels(at index: Int, rightToLeft: Bool) async -> [CGRect] {
+        let key = "\(index)-\(rightToLeft)"
+        if let cached = panelCache[key] { return cached }
+        guard let cgImage = await image(at: index)?.cgImage else { return [] }
+        let panels = await Task.detached(priority: .userInitiated) {
+            PanelDetector.panels(in: cgImage, rightToLeft: rightToLeft)
+        }.value
+        panelCache[key] = panels
+        return panels
     }
 
     /// Warms the cache for the pages the reader is most likely to show next.

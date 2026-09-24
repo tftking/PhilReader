@@ -69,6 +69,7 @@
 			<array>
 				<string>public.zip-archive</string>
 				<string>com.adobe.pdf</string>
+				<string>org.idpf.epub-container</string>
 			</array>
 		</dict>
 	</array>
