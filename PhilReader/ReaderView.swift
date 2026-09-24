@@ -104,7 +104,11 @@ struct ReaderView: View {
             library.updateProgress(for: comic.id, page: index)
             guard !isScrubbing else { return }
             model.prefetch(around: index)
-            if showChrome && !showPages && !showSettings { setChrome(visible: false) }
+            var keepsChrome = showPages || showSettings
+            #if DEBUG
+            keepsChrome = keepsChrome || DemoLaunch.chrome == "visible"
+            #endif
+            if showChrome && !keepsChrome { setChrome(visible: false) }
         }
         .onChange(of: mode) { newMode in
             model.sizesForVerticalScroll = newMode == .vertical

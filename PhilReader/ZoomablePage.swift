@@ -64,6 +64,14 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
     }
 
     private let imageView = UIImageView()
+    /// Guided view: darkens everything outside the current panel.
+    private let focusDim: CAShapeLayer = {
+        let layer = CAShapeLayer()
+        layer.fillRule = .evenOdd
+        layer.fillColor = UIColor.black.withAlphaComponent(0.6).cgColor
+        layer.opacity = 0
+        return layer
+    }()
     private var lastLayoutSize: CGSize = .zero
 
     private static let analyzer: ImageAnalyzer? = ImageAnalyzer.isSupported ? ImageAnalyzer() : nil
@@ -88,6 +96,7 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
         contentInsetAdjustmentBehavior = .never
 
         imageView.contentMode = .scaleAspectFit
+        imageView.layer.addSublayer(focusDim)
         addSubview(imageView)
 
         let doubleTap = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
@@ -118,15 +127,23 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
     private func applyFocus(animated: Bool) {
         let size = imageView.bounds.size
         guard bounds.width > 0, size.width > 0, size.height > 0 else { return }
+        focusDim.frame = imageView.bounds
         guard let focus = focusRect, focus != CGRect(x: 0, y: 0, width: 1, height: 1) else {
+            focusDim.opacity = 0
             if zoomScale != minimumZoomScale { setZoomScale(minimumZoomScale, animated: animated) }
             return
         }
+        let panel = CGRect(x: focus.minX * size.width, y: focus.minY * size.height,
+                           width: focus.width * size.width, height: focus.height * size.height)
+        // Dim the rest of the page so the current panel stands out even when it is
+        // already nearly full width (and so barely zooms).
+        let mask = UIBezierPath(rect: imageView.bounds)
+        mask.append(UIBezierPath(roundedRect: panel.insetBy(dx: -size.width * 0.006, dy: -size.width * 0.006),
+                                 cornerRadius: size.width * 0.01))
+        focusDim.path = mask.cgPath
+        focusDim.opacity = 1
         // A little breathing room around the panel.
-        let rect = CGRect(x: focus.minX * size.width, y: focus.minY * size.height,
-                          width: focus.width * size.width, height: focus.height * size.height)
-            .insetBy(dx: -size.width * 0.015, dy: -size.height * 0.015)
-        zoom(to: rect, animated: animated)
+        zoom(to: panel.insetBy(dx: -size.width * 0.015, dy: -size.height * 0.015), animated: animated)
     }
 
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }

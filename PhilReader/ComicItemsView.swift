@@ -330,7 +330,8 @@ private extension View {
         if let selected {
             self
                 .opacity(selected ? 1 : 0.75)
-                .overlay(alignment: .bottomTrailing) {
+                // Top corner: the bottom holds progress bars, badges and issue counts.
+                .overlay(alignment: .topTrailing) {
                     Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 22, weight: .semibold))
                         .symbolRenderingMode(.palette)
