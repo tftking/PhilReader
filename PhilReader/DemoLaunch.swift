@@ -42,10 +42,26 @@ enum DemoLaunch {
     static var selectedTitles: [String] {
         (defaults.string(forKey: "demoSelect") ?? "").split(separator: ",").map(String.init)
     }
-    /// Selects a tab: "library", "collections" or "settings".
+    /// Selects a tab: "readingNow", "library", "search" or "settings".
     static var tab: AppTab? { defaults.string(forKey: "demoTab").flatMap { AppTab(rawValue: $0) } }
+    /// Opens a comics grid in the Library tab: "all", "device" or a linked folder's name.
+    static var libraryScope: String? { defaults.string(forKey: "demoScope") }
+    /// Starts the Search tab with this text.
+    static var searchText: String? { defaults.string(forKey: "demoSearch") }
+    /// Opens a settings page: "readers", "gestures", "filters" or "presets".
+    static var settingsPage: String? { defaults.string(forKey: "demoSettings") }
+    /// Opens Library ▸ Web Server, which starts the upload server.
+    static var opensWebServer: Bool { defaults.bool(forKey: "demoWebServer") }
+    /// Whether the launch shows something inside the Library tab.
+    static var browsesLibrary: Bool {
+        collectionName != nil || seriesName != nil || libraryScope != nil || !selectedTitles.isEmpty || opensWebServer
+    }
     /// Links this folder inside Documents as a library folder (standing in for iCloud Drive).
     static var linkedFolderName: String? { defaults.string(forKey: "demoLinkFolder") }
+    /// Turns on image filters with this tone ("grayscale", "sepia" or "night") and a little extra contrast.
+    static var filterTone: ImageTone? { defaults.string(forKey: "demoTone").flatMap { ImageTone(rawValue: $0) } }
+    /// Shows the reader's page scrubbing preview.
+    static var scrubs: Bool { defaults.bool(forKey: "demoScrub") }
     /// Starts on the end-of-comic card.
     static var showsEnd: Bool { defaults.bool(forKey: "demoEnd") }
 }

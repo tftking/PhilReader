@@ -46,6 +46,13 @@
 		22222222222222222222228C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111118C /* SettingsView.swift */; };
 		22222222222222222222228D /* PanelDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111118D /* PanelDetector.swift */; };
 		22222222222222222222228E /* EPUBDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111118E /* EPUBDocument.swift */; };
+		222222222222222222222295 /* WebServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111195 /* WebServerView.swift */; };
+		222222222222222222222294 /* WebServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111194 /* WebServer.swift */; };
+		222222222222222222222293 /* ReaderSettingsPages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111193 /* ReaderSettingsPages.swift */; };
+		222222222222222222222292 /* ReaderPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111192 /* ReaderPreferences.swift */; };
+		222222222222222222222291 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111191 /* SearchView.swift */; };
+		222222222222222222222290 /* ReadingNowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111190 /* ReadingNowView.swift */; };
+		22222222222222222222228F /* LibraryHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111118F /* LibraryHomeView.swift */; };
 		666666666666666666666619 /* TestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666666666666620 /* TestSupport.swift */; };
 		666666666666666666666621 /* ReaderFeatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666666666666622 /* ReaderFeatureTests.swift */; };
 /* End PBXBuildFile section */
@@ -100,6 +107,13 @@
 		11111111111111111111118C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		11111111111111111111118D /* PanelDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelDetector.swift; sourceTree = "<group>"; };
 		11111111111111111111118E /* EPUBDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPUBDocument.swift; sourceTree = "<group>"; };
+		111111111111111111111195 /* WebServerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebServerView.swift; sourceTree = "<group>"; };
+		111111111111111111111194 /* WebServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebServer.swift; sourceTree = "<group>"; };
+		111111111111111111111193 /* ReaderSettingsPages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderSettingsPages.swift; sourceTree = "<group>"; };
+		111111111111111111111192 /* ReaderPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderPreferences.swift; sourceTree = "<group>"; };
+		111111111111111111111191 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
+		111111111111111111111190 /* ReadingNowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingNowView.swift; sourceTree = "<group>"; };
+		11111111111111111111118F /* LibraryHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryHomeView.swift; sourceTree = "<group>"; };
 		666666666666666666666620 /* TestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestSupport.swift; sourceTree = "<group>"; };
 		666666666666666666666622 /* ReaderFeatureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderFeatureTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -148,6 +162,13 @@
 				111111111111111111111183 /* ComicSource.swift */,
 				11111111111111111111118D /* PanelDetector.swift */,
 				11111111111111111111118E /* EPUBDocument.swift */,
+				111111111111111111111195 /* WebServerView.swift */,
+				111111111111111111111194 /* WebServer.swift */,
+				111111111111111111111193 /* ReaderSettingsPages.swift */,
+				111111111111111111111192 /* ReaderPreferences.swift */,
+				111111111111111111111191 /* SearchView.swift */,
+				111111111111111111111190 /* ReadingNowView.swift */,
+				11111111111111111111118F /* LibraryHomeView.swift */,
 				111111111111111111111184 /* ExtractedArchive.swift */,
 				111111111111111111111185 /* SevenZipExtractor.swift */,
 				111111111111111111111186 /* RarExtractor.swift */,
@@ -308,6 +329,13 @@
 				222222222222222222222283 /* ComicSource.swift in Sources */,
 				22222222222222222222228D /* PanelDetector.swift in Sources */,
 				22222222222222222222228E /* EPUBDocument.swift in Sources */,
+				222222222222222222222295 /* WebServerView.swift in Sources */,
+				222222222222222222222294 /* WebServer.swift in Sources */,
+				222222222222222222222293 /* ReaderSettingsPages.swift in Sources */,
+				222222222222222222222292 /* ReaderPreferences.swift in Sources */,
+				222222222222222222222291 /* SearchView.swift in Sources */,
+				222222222222222222222290 /* ReadingNowView.swift in Sources */,
+				22222222222222222222228F /* LibraryHomeView.swift in Sources */,
 				222222222222222222222284 /* ExtractedArchive.swift in Sources */,
 				222222222222222222222285 /* SevenZipExtractor.swift in Sources */,
 				222222222222222222222286 /* RarExtractor.swift in Sources */,

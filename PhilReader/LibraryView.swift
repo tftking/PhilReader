@@ -1,11 +1,31 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-enum LibraryRoute: Hashable {
-    case series(String)
+/// Which comics a grid shows.
+enum LibraryScope: Hashable {
+    /// Everything in the library.
+    case all
+    /// Comics imported into the app (not in a linked folder).
+    case device
+    /// Comics in one linked library folder.
+    case folder(UUID)
 }
 
-struct LibraryView: View {
+/// Screens pushed inside the Library and Search tabs.
+enum LibraryRoute: Hashable {
+    case comics(LibraryScope)
+    case collection(UUID)
+    case series(String)
+    case allSeries
+    case finished
+    case webServer
+}
+
+/// Comics in a scope as a grid or list, with search, filters, sorting and selection.
+struct ComicsGridScreen: View {
+    let scope: LibraryScope
+    let openSeries: (String) -> Void
+
     @EnvironmentObject private var library: LibraryManager
     @EnvironmentObject private var coordinator: ReadingCoordinator
     @AppStorage("library.sort") private var sort: LibrarySort = .recentlyRead
@@ -15,49 +35,53 @@ struct LibraryView: View {
     @AppStorage("library.groupSeries") private var groupsSeries = true
 
     @State private var search = ""
-    @State private var path = NavigationPath()
     @State private var showingFilePicker = false
     @State private var isSelecting = false
     @State private var selection: Set<UUID> = []
     @State private var confirmDelete = false
     @State private var isDropTargeted = false
 
-    private static let importableTypes: [UTType] =
+    static let importableTypes: [UTType] =
         ["cbz", "cbr", "cb7", "rar", "7z"].compactMap { UTType(filenameExtension: $0) } + [.zip, .pdf, .epub, .folder]
 
+    private var scopedComics: [ComicBook] {
+        switch scope {
+        case .all: return library.comics
+        case .device: return library.comics.filter { !$0.isLinked }
+        case .folder(let id): return library.comics.filter { $0.linkedFolderID == id }
+        }
+    }
+    private var title: String {
+        switch scope {
+        case .all: return "All Comics"
+        case .device: return "On My iPhone"
+        case .folder(let id): return library.linkedFolders.first { $0.id == id }?.name ?? "Folder"
+        }
+    }
     private var query: LibraryQuery { LibraryQuery(search: search, sort: sort, filter: filter) }
-    private var visibleComics: [ComicBook] { query.apply(to: library.comics) }
+    private var visibleComics: [ComicBook] { query.apply(to: scopedComics) }
     private var entries: [LibraryEntry] {
         groupsSeries && search.isEmpty ? LibraryEntry.grouped(visibleComics) : visibleComics.map(LibraryEntry.comic)
     }
-    private var continueReading: [ComicBook] { LibraryQuery.continueReading(library.comics) }
-    private var isBrowsing: Bool { search.isEmpty && !isSelecting }
-    private var showsShelf: Bool { isBrowsing && filter == .all && !continueReading.isEmpty }
     private var actions: ComicActionHandlers { coordinator.actions }
 
     var body: some View {
-        NavigationStack(path: $path) {
-            Group {
-                if library.comics.isEmpty {
-                    emptyLibrary
-                } else {
-                    content
-                }
-            }
-            .navigationTitle(isSelecting ? "\(selection.count) Selected" : "Library")
-            .toolbar { toolbar }
-            .overlay { if library.isImporting { ImportingOverlay() } }
-            .overlay { if isDropTargeted { DropTargetOverlay() } }
-            .dropDestination(for: URL.self) { urls, _ in
-                Task { for url in urls { await library.importComic(from: url) } }
-                return !urls.isEmpty
-            } isTargeted: { isDropTargeted = $0 }
-            .navigationDestination(for: LibraryRoute.self) { route in
-                switch route {
-                case .series(let name): SeriesView(name: name, actions: actions)
-                }
+        Group {
+            if scopedComics.isEmpty {
+                emptyLibrary
+            } else {
+                content
             }
         }
+        .navigationTitle(isSelecting ? "\(selection.count) Selected" : title)
+        .toolbar { toolbar }
+        // The selection actions take the bottom bar's place.
+        .toolbar(isSelecting ? .hidden : .visible, for: .tabBar)
+        .overlay { if isDropTargeted { DropTargetOverlay() } }
+        .dropDestination(for: URL.self) { urls, _ in
+            Task { for url in urls { await library.importComic(from: url) } }
+            return !urls.isEmpty
+        } isTargeted: { isDropTargeted = $0 }
         .fileImporter(
             isPresented: $showingFilePicker,
             allowedContentTypes: Self.importableTypes,
@@ -66,14 +90,6 @@ struct LibraryView: View {
             if case .success(let urls) = result {
                 Task { for url in urls { await library.importComic(from: url) } }
             }
-        }
-        .alert("Couldn't Import", isPresented: Binding(
-            get: { library.importError != nil },
-            set: { if !$0 { library.importError = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(library.importError ?? "")
         }
         .confirmationDialog("Delete \(selection.count) \(selection.count == 1 ? "Comic" : "Comics")?",
                             isPresented: $confirmDelete, titleVisibility: .visible) {
@@ -85,7 +101,13 @@ struct LibraryView: View {
             Text("They will be removed from this device.")
         }
         #if DEBUG
-        .task { await prepareDemo() }
+        .task {
+            await library.prepareDemoLibrary()
+            if !DemoLaunch.selectedTitles.isEmpty && !isSelecting {
+                isSelecting = true
+                selection = Set(library.comics.filter { DemoLaunch.selectedTitles.contains($0.title) }.map(\.id))
+            }
+        }
         #endif
     }
 
@@ -93,26 +115,15 @@ struct LibraryView: View {
 
     private var content: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 26) {
-                if showsShelf, let latest = continueReading.first {
-                    JumpBackInCard(comic: latest) { actions.open(latest) }
-                        .contextMenu { ComicActions(comic: latest, handlers: actions) }
-                        .padding(.horizontal, 20)
-                    if continueReading.count > 1 {
-                        ContinueReadingShelf(comics: Array(continueReading.dropFirst()), actions: actions)
-                    }
-                }
+            VStack(alignment: .leading, spacing: 16) {
+                FilterBar(selection: $filter, comics: scopedComics)
 
-                VStack(alignment: .leading, spacing: 16) {
-                    FilterBar(selection: $filter, comics: library.comics)
-
-                    if entries.isEmpty {
-                        noMatches
-                    } else {
-                        ComicItemsView(entries: entries, layout: layout, coverSize: coverSize,
-                                       isSelecting: isSelecting, selection: $selection, actions: actions,
-                                       openSeries: { path.append(LibraryRoute.series($0)) })
-                    }
+                if entries.isEmpty {
+                    noMatches
+                } else {
+                    ComicItemsView(entries: entries, layout: layout, coverSize: coverSize,
+                                   isSelecting: isSelecting, selection: $selection, actions: actions,
+                                   openSeries: openSeries)
                 }
             }
             .padding(.top, 8)
@@ -164,11 +175,11 @@ struct LibraryView: View {
             }
         } else {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
-                if !library.comics.isEmpty {
+                if !scopedComics.isEmpty {
                     Menu {
                         viewOptions
                     } label: {
-                        Image(systemName: "ellipsis.circle")
+                        Image(systemName: "ellipsis")
                     }
                     .accessibilityLabel("View Options")
                 }
@@ -205,8 +216,8 @@ struct LibraryView: View {
             Image(systemName: "books.vertical.fill")
                 .font(.system(size: 56))
                 .foregroundStyle(.tint)
-            Text("Your Library Is Empty")
-                .font(.title2.bold())
+            Text(scope == .all ? "Your Library Is Empty" : "No Comics Here Yet")
+                .font(.system(.title2, design: .rounded).bold())
             Text("Import comics (.cbz, .cbr, .cb7, .pdf, .epub or a\nfolder of images) from Files, or open one from another app.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -246,140 +257,6 @@ struct LibraryView: View {
             selection = []
         }
     }
-
-    #if DEBUG
-    private func prepareDemo() async {
-        await library.prepareDemoLibrary()
-        if DemoLaunch.collectionName != nil || DemoLaunch.tab != nil {
-            return
-        } else if let series = DemoLaunch.seriesName {
-            path.append(LibraryRoute.series(series))
-        } else if !DemoLaunch.selectedTitles.isEmpty {
-            isSelecting = true
-            selection = Set(library.comics.filter { DemoLaunch.selectedTitles.contains($0.title) }.map(\.id))
-        } else if let title = DemoLaunch.openTitle, let comic = library.comics.first(where: { $0.title == title }) {
-            if let mode = DemoLaunch.mode { library.setReadingMode(comic.id, mode) }
-            if let page = DemoLaunch.page { library.updateProgress(for: comic.id, page: max(page - 1, 0)) }
-            coordinator.readingComic = library.comic(withID: comic.id)
-        } else if let title = DemoLaunch.infoTitle, let comic = library.comics.first(where: { $0.title == title }) {
-            coordinator.infoComic = comic
-        }
-    }
-    #endif
-}
-
-// MARK: - Continue Reading
-
-/// The most recently read comic, large, over its own blurred cover.
-private struct JumpBackInCard: View {
-    let comic: ComicBook
-    let open: () -> Void
-
-    @EnvironmentObject private var library: LibraryManager
-    @State private var backdrop: UIImage?
-
-    var body: some View {
-        Button(action: open) {
-            HStack(spacing: 18) {
-                ComicCoverView(comic: comic, cornerRadius: 8)
-                    .frame(width: 100)
-                    .shadow(color: .black.opacity(0.45), radius: 12, y: 8)
-                VStack(alignment: .leading, spacing: 7) {
-                    Text("JUMP BACK IN")
-                        .font(.caption2.weight(.heavy))
-                        .tracking(1.4)
-                        .foregroundStyle(.white.opacity(0.7))
-                    Text(comic.displayTitle)
-                        .font(.title3.bold())
-                        .foregroundStyle(.white)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    Text("Page \(comic.currentPage + 1) of \(comic.pageCount)")
-                        .font(.subheadline)
-                        .monospacedDigit()
-                        .foregroundStyle(.white.opacity(0.75))
-                    ProgressBar(value: comic.progress)
-                        .frame(maxWidth: 150)
-                        .padding(.vertical, 2)
-                    Label("Continue", systemImage: "play.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(.white, in: Capsule())
-                        .foregroundStyle(.black)
-                        .padding(.top, 4)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(18)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background {
-                ZStack {
-                    Color(white: 0.12)
-                    if let backdrop {
-                        Image(uiImage: backdrop)
-                            .resizable()
-                            .scaledToFill()
-                            .blur(radius: 40)
-                            .saturation(1.4)
-                            .transition(.opacity)
-                    }
-                    LinearGradient(colors: [.black.opacity(0.1), .black.opacity(0.55)], startPoint: .top, endPoint: .bottom)
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(.white.opacity(0.08)))
-            .shadow(color: .black.opacity(0.22), radius: 18, y: 10)
-        }
-        .buttonStyle(CoverButtonStyle())
-        .task(id: comic.id) {
-            let image = await library.coverImage(for: comic)
-            withAnimation(.easeOut(duration: 0.3)) { backdrop = image }
-        }
-    }
-}
-
-private struct ContinueReadingShelf: View {
-    let comics: [ComicBook]
-    let actions: ComicActionHandlers
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Also Reading")
-                .font(.title3.bold())
-                .padding(.horizontal, 20)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 16) {
-                    ForEach(comics) { comic in
-                        Button { actions.open(comic) } label: { card(comic) }
-                            .buttonStyle(CoverButtonStyle())
-                            .contextMenu { ComicActions(comic: comic, handlers: actions) }
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 4)
-            }
-        }
-    }
-
-    private func card(_ comic: ComicBook) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ComicCoverView(comic: comic)
-                .frame(width: 132)
-            Text(comic.displayTitle)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
-            ProgressView(value: comic.progress)
-                .tint(.accentColor)
-            Text("Page \(comic.currentPage + 1) of \(comic.pageCount)")
-                .font(.caption)
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-        }
-        .frame(width: 132)
-        .foregroundStyle(.primary)
-    }
 }
 
 // MARK: - Pieces
@@ -410,29 +287,6 @@ private struct FilterBar: View {
                 }
             }
             .padding(.horizontal, 20)
-        }
-    }
-}
-
-/// Slight press-down scale, like tapping a book on a shelf.
-struct CoverButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
-    }
-}
-
-private struct ImportingOverlay: View {
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.35).ignoresSafeArea()
-            VStack(spacing: 12) {
-                ProgressView().controlSize(.large)
-                Text("Importing…").font(.headline)
-            }
-            .padding(28)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
     }
 }

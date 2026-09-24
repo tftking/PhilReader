@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum AppTab: String {
-    case library, collections, settings
+    case readingNow, library, search, settings
 }
 
 /// Presents the reader, comic details and "Add to Collection" for every tab,
@@ -45,120 +45,123 @@ final class ReadingCoordinator: ObservableObject {
 struct ContentView: View {
     @EnvironmentObject private var library: LibraryManager
     @StateObject private var coordinator = ReadingCoordinator()
-    @AppStorage("app.tab") private var tab: AppTab = .library
+    @AppStorage("app.tab") private var tab: AppTab = .readingNow
 
     var body: some View {
-        TabView(selection: $tab) {
-            LibraryView()
-                .tabItem { Label("Library", systemImage: "books.vertical.fill") }
-                .tag(AppTab.library)
-            CollectionsTab()
-                .tabItem { Label("Collections", systemImage: "square.stack.fill") }
-                .tag(AppTab.collections)
-            SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
-                .tag(AppTab.settings)
-        }
-        .environmentObject(coordinator)
-        .sheet(item: $coordinator.pendingAdd) { pending in
-            AddToCollectionSheet(comicIDs: pending.comicIDs, onDone: pending.onDone)
-        }
-        .sheet(item: $coordinator.infoComic, onDismiss: coordinator.openPending) { comic in
-            ComicDetailView(comicID: comic.id) { selected in
-                coordinator.pendingRead = selected
-                coordinator.infoComic = nil
+        tabs
+            .environmentObject(coordinator)
+            .overlay { if library.isImporting { ImportingOverlay() } }
+            .alert("Couldn't Import", isPresented: Binding(
+                get: { library.importError != nil },
+                set: { if !$0 { library.importError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(library.importError ?? "")
             }
-        }
-        .fullScreenCover(item: $coordinator.readingComic, onDismiss: coordinator.openPending) { comic in
-            ReaderView(comic: comic, fileURL: library.fileURL(for: comic)) { next in
-                coordinator.pendingRead = next
+            .sheet(item: $coordinator.pendingAdd) { pending in
+                AddToCollectionSheet(comicIDs: pending.comicIDs, onDone: pending.onDone)
             }
-        }
-        #if DEBUG
-        .onAppear {
-            if DemoLaunch.collectionName != nil { tab = .collections }
-            if let demoTab = DemoLaunch.tab { tab = demoTab }
-        }
-        #endif
-    }
-}
-
-// MARK: - Collections tab
-
-struct CollectionsTab: View {
-    @EnvironmentObject private var library: LibraryManager
-    @EnvironmentObject private var coordinator: ReadingCoordinator
-    @State private var path = NavigationPath()
-    @State private var creating = false
-
-    private let columns = [GridItem(.adaptive(minimum: 158, maximum: 220), spacing: 16, alignment: .top)]
-
-    var body: some View {
-        NavigationStack(path: $path) {
-            Group {
-                if library.collections.isEmpty {
-                    empty
-                } else {
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: 24) {
-                            ForEach(library.collections) { collection in
-                                NavigationLink(value: collection.id) {
-                                    CollectionCard(collection: collection, width: nil)
-                                }
-                                .buttonStyle(CoverButtonStyle())
-                            }
-                        }
-                        .padding(20)
-                    }
+            .sheet(item: $coordinator.infoComic, onDismiss: coordinator.openPending) { comic in
+                ComicDetailView(comicID: comic.id) { selected in
+                    coordinator.pendingRead = selected
+                    coordinator.infoComic = nil
                 }
             }
-            .navigationTitle("Collections")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { creating = true } label: { Image(systemName: "plus") }
-                        .accessibilityLabel("New Collection")
-                }
-            }
-            .navigationDestination(for: UUID.self) { id in
-                CollectionView(collectionID: id, actions: coordinator.actions)
-            }
-            .sheet(isPresented: $creating) {
-                CollectionEditor(title: "New Collection") { name, color in
-                    let collection = library.createCollection(named: name, color: color)
-                    path.append(collection.id)
+            .fullScreenCover(item: $coordinator.readingComic, onDismiss: coordinator.openPending) { comic in
+                ReaderView(comic: comic, fileURL: library.fileURL(for: comic)) { next in
+                    coordinator.pendingRead = next
                 }
             }
             #if DEBUG
-            .task {
-                await library.prepareDemoLibrary()
-                if let name = DemoLaunch.collectionName, path.isEmpty,
-                   let collection = library.collections.first(where: { $0.name == name }) {
-                    path.append(collection.id)
+            .onAppear {
+                // Each demo launch picks its tab; the saved tab would otherwise carry over between shots.
+                if DemoLaunch.importsLibrary {
+                    tab = DemoLaunch.tab ?? (DemoLaunch.browsesLibrary ? .library : .readingNow)
                 }
             }
+            .task { await prepareDemo() }
             #endif
+    }
+
+    /// On iOS 18 and later Search is a separate button beside the tab bar, as in Panels.
+    @ViewBuilder
+    private var tabs: some View {
+        if #available(iOS 18.0, *) {
+            TabView(selection: $tab) {
+                Tab("Reading Now", systemImage: "book", value: AppTab.readingNow) {
+                    ReadingNowView(showLibrary: { tab = .library })
+                }
+                Tab("Library", systemImage: "books.vertical", value: AppTab.library) {
+                    LibraryHomeView()
+                }
+                Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
+                    SettingsView()
+                }
+                Tab(value: AppTab.search, role: .search) {
+                    SearchView()
+                }
+            }
+        } else {
+            TabView(selection: $tab) {
+                ReadingNowView(showLibrary: { tab = .library })
+                    .tabItem { Label("Reading Now", systemImage: "book") }
+                    .tag(AppTab.readingNow)
+                LibraryHomeView()
+                    .tabItem { Label("Library", systemImage: "books.vertical") }
+                    .tag(AppTab.library)
+                SearchView()
+                    .tabItem { Label("Search", systemImage: "magnifyingglass") }
+                    .tag(AppTab.search)
+                SettingsView()
+                    .tabItem { Label("Settings", systemImage: "gearshape") }
+                    .tag(AppTab.settings)
+            }
         }
     }
 
-    private var empty: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "square.stack.3d.up.fill")
-                .font(.system(size: 52))
-                .foregroundStyle(.tint)
-            Text("No Collections Yet")
-                .font(.title2.bold())
-            Text("Group comics however you like: favourites,\na reading list, a publisher, a story arc.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Button { creating = true } label: {
-                Label("New Collection", systemImage: "plus").font(.headline).padding(.horizontal, 8)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .buttonBorderShape(.capsule)
+    #if DEBUG
+    private func prepareDemo() async {
+        if let tone = DemoLaunch.filterTone {
+            let filters = ImageFilterSettings(brightness: 0.03, contrast: 1.15, tone: tone)
+            UserDefaults.standard.set(StoredFilters(filters).rawValue, forKey: ReaderKeys.filters)
+            UserDefaults.standard.set(true, forKey: ReaderKeys.filtersEnabled)
+        } else if DemoLaunch.importsLibrary {
+            // Demo launches share one install, so a filtered shot mustn't tint the next one.
+            UserDefaults.standard.removeObject(forKey: ReaderKeys.filters)
+            UserDefaults.standard.removeObject(forKey: ReaderKeys.filtersEnabled)
         }
-        .padding(32)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        await library.prepareDemoLibrary()
+        if let title = DemoLaunch.openTitle, let comic = library.comics.first(where: { $0.title == title }) {
+            if let mode = DemoLaunch.mode { library.setReadingMode(comic.id, mode) }
+            if let page = DemoLaunch.page { library.updateProgress(for: comic.id, page: max(page - 1, 0)) }
+            coordinator.readingComic = library.comic(withID: comic.id)
+        } else if let title = DemoLaunch.infoTitle, let comic = library.comics.first(where: { $0.title == title }) {
+            coordinator.infoComic = comic
+        }
+    }
+    #endif
+}
+
+/// Slight press-down scale, like tapping a book on a shelf.
+struct CoverButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
+private struct ImportingOverlay: View {
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.35).ignoresSafeArea()
+            VStack(spacing: 12) {
+                ProgressView().controlSize(.large)
+                Text("Importing…").font(.headline)
+            }
+            .padding(28)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
     }
 }

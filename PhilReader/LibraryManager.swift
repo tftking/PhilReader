@@ -74,6 +74,11 @@ final class LibraryManager: ObservableObject {
         }
     }
 
+    func addReadingTime(_ id: UUID, seconds: TimeInterval) {
+        guard seconds > 0 else { return }
+        update(id) { $0.readingTime += seconds }
+    }
+
     func markOpened(_ id: UUID) {
         update(id) { $0.lastOpened = Date() }
     }
@@ -242,7 +247,8 @@ final class LibraryManager: ObservableObject {
             update(comic.id) { comic in
                 comic.currentPage = max(entry.page - 1, 0)
                 comic.isFinished = entry.page >= comic.pageCount
-                comic.lastOpened = Date().addingTimeInterval(-3600 * Double(offset + 1))
+                // A few days apart, so Reading Now shows a spread of dates.
+                comic.lastOpened = Date().addingTimeInterval(-3600 - 86_400 * 3 * Double(offset))
             }
         }
     }

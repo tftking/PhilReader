@@ -94,7 +94,7 @@ struct ComicGridItem: View {
                         ProgressBar(value: comic.progress).padding(8)
                     }
                 }
-                .overlay(alignment: .topTrailing) {
+                .overlay(alignment: .bottomTrailing) {
                     if comic.status == .finished && selected == nil {
                         FinishedBadge().padding(6)
                     }
@@ -266,7 +266,7 @@ extension ComicBook {
         if isCloudOnly { return "In iCloud" }
         switch status {
         case .unread: return "\(pageCount) pages"
-        case .inProgress: return "\(Int((progress * 100).rounded()))% read"
+        case .inProgress: return "Page \(currentPage + 1) of \(pageCount)"
         case .finished: return "Finished"
         }
     }
@@ -283,11 +283,13 @@ struct UnreadDot: View {
 
 private struct FinishedBadge: View {
     var body: some View {
-        Image(systemName: "checkmark.circle.fill")
-            .font(.system(size: 20))
-            .symbolRenderingMode(.palette)
-            .foregroundStyle(.white, Color.accentColor)
-            .shadow(radius: 2)
+        Image(systemName: "checkmark")
+            .font(.system(size: 10, weight: .heavy))
+            .foregroundStyle(.white)
+            .frame(width: 22, height: 22)
+            .background(Color.accentColor, in: Circle())
+            .overlay(Circle().strokeBorder(.black.opacity(0.25), lineWidth: 1))
+            .shadow(color: .black.opacity(0.35), radius: 3, y: 1)
     }
 }
 
@@ -328,7 +330,8 @@ private extension View {
         if let selected {
             self
                 .opacity(selected ? 1 : 0.75)
-                .overlay(alignment: .bottomTrailing) {
+                // Top corner: the bottom holds progress bars, badges and issue counts.
+                .overlay(alignment: .topTrailing) {
                     Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 22, weight: .semibold))
                         .symbolRenderingMode(.palette)

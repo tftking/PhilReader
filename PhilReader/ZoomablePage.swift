@@ -23,20 +23,44 @@ struct ZoomablePage: UIViewRepresentable {
         view.focusRect = focusRect
         view.liveTextEnabled = liveText
         view.onTap = onTap
+        view.filters = context.environment.pageFilters
+        view.pullToClose = context.environment.pullToClose
+        view.doubleTapScale = context.environment.doubleTapScale
     }
 }
 
 final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
     var onTap: (CGFloat) -> Void = { _ in }
 
+    /// Called when the page is pulled down past its top edge and let go.
+    var pullToClose: (() -> Void)? {
+        didSet { alwaysBounceVertical = pullToClose != nil }
+    }
+
+    /// How far a double tap zooms in; `nil` turns double-tap zoom off.
+    var doubleTapScale: CGFloat? = 2.5 {
+        didSet { doubleTapRecognizer.isEnabled = doubleTapScale != nil }
+    }
+
+    /// How far down a page must be pulled to close the reader.
+    static let pullToCloseDistance: CGFloat = 90
+
     var image: UIImage? {
         didSet {
             guard image !== oldValue else { return }
-            imageView.image = image
+            applyFilters()
             analyzeForLiveText()
             setZoomScale(minimumZoomScale, animated: false)
             lastLayoutSize = .zero
             setNeedsLayout()
+        }
+    }
+
+    /// Brightness, contrast and tone adjustments; `nil` shows the page as scanned.
+    var filters: ImageFilterSettings? {
+        didSet {
+            guard filters != oldValue else { return }
+            applyFilters()
         }
     }
 
@@ -64,6 +88,15 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
     }
 
     private let imageView = UIImageView()
+    private let doubleTapRecognizer = UITapGestureRecognizer()
+    /// Guided view: darkens everything outside the current panel.
+    private let focusDim: CAShapeLayer = {
+        let layer = CAShapeLayer()
+        layer.fillRule = .evenOdd
+        layer.fillColor = UIColor.black.withAlphaComponent(0.6).cgColor
+        layer.opacity = 0
+        return layer
+    }()
     private var lastLayoutSize: CGSize = .zero
 
     private static let analyzer: ImageAnalyzer? = ImageAnalyzer.isSupported ? ImageAnalyzer() : nil
@@ -74,6 +107,7 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
         return interaction
     }()
     private var analysisTask: Task<Void, Never>?
+    private var filterTask: Task<Void, Never>?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -88,14 +122,16 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
         contentInsetAdjustmentBehavior = .never
 
         imageView.contentMode = .scaleAspectFit
+        imageView.layer.addSublayer(focusDim)
         addSubview(imageView)
 
-        let doubleTap = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
-        doubleTap.numberOfTapsRequired = 2
-        addGestureRecognizer(doubleTap)
+        isDirectionalLockEnabled = true
+        doubleTapRecognizer.addTarget(self, action: #selector(handleDoubleTap(_:)))
+        doubleTapRecognizer.numberOfTapsRequired = 2
+        addGestureRecognizer(doubleTapRecognizer)
 
         let singleTap = UITapGestureRecognizer(target: self, action: #selector(handleSingleTap(_:)))
-        singleTap.require(toFail: doubleTap)
+        singleTap.require(toFail: doubleTapRecognizer)
         addGestureRecognizer(singleTap)
     }
 
@@ -118,20 +154,44 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
     private func applyFocus(animated: Bool) {
         let size = imageView.bounds.size
         guard bounds.width > 0, size.width > 0, size.height > 0 else { return }
+        focusDim.frame = imageView.bounds
         guard let focus = focusRect, focus != CGRect(x: 0, y: 0, width: 1, height: 1) else {
+            focusDim.opacity = 0
             if zoomScale != minimumZoomScale { setZoomScale(minimumZoomScale, animated: animated) }
             return
         }
+        let panel = CGRect(x: focus.minX * size.width, y: focus.minY * size.height,
+                           width: focus.width * size.width, height: focus.height * size.height)
+        // Dim the rest of the page so the current panel stands out even when it is
+        // already nearly full width (and so barely zooms).
+        let mask = UIBezierPath(rect: imageView.bounds)
+        mask.append(UIBezierPath(roundedRect: panel.insetBy(dx: -size.width * 0.006, dy: -size.width * 0.006),
+                                 cornerRadius: size.width * 0.01))
+        focusDim.path = mask.cgPath
+        focusDim.opacity = 1
         // A little breathing room around the panel.
-        let rect = CGRect(x: focus.minX * size.width, y: focus.minY * size.height,
-                          width: focus.width * size.width, height: focus.height * size.height)
-            .insetBy(dx: -size.width * 0.015, dy: -size.height * 0.015)
-        zoom(to: rect, animated: animated)
+        zoom(to: panel.insetBy(dx: -size.width * 0.015, dy: -size.height * 0.015), animated: animated)
     }
 
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
 
     /// Runs text recognition on the current page when Live Text is on.
+    /// Shows the page, filtered off the main thread when filters are on.
+    private func applyFilters() {
+        filterTask?.cancel()
+        guard let image, let filters, !filters.isOriginal else {
+            imageView.image = image
+            return
+        }
+        filterTask = Task { [weak self] in
+            let filtered = await Task.detached(priority: .userInitiated) {
+                PageFilterRenderer.render(image, with: filters)
+            }.value
+            guard let self, !Task.isCancelled, self.image === image, self.filters == filters else { return }
+            self.imageView.image = filtered ?? image
+        }
+    }
+
     private func analyzeForLiveText() {
         analysisTask?.cancel()
         guard let analyzer = Self.analyzer else { return }
@@ -154,6 +214,25 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
     }
 
     func scrollViewDidZoom(_ scrollView: UIScrollView) { centerContent() }
+
+    /// How far the page has been pulled down past its top edge, when not zoomed in.
+    private var pullDistance: CGFloat {
+        guard pullToClose != nil, zoomScale <= minimumZoomScale + 0.01 else { return 0 }
+        return max(0, -(contentOffset.y + contentInset.top))
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard pullToClose != nil else { return }
+        // Fades as it's pulled, hinting that letting go will close the reader.
+        imageView.alpha = 1 - min(pullDistance / (Self.pullToCloseDistance * 4), 0.35)
+    }
+
+    func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint,
+                                   targetContentOffset: UnsafeMutablePointer<CGPoint>) {
+        if pullDistance > Self.pullToCloseDistance || (pullDistance > 30 && velocity.y < -1.5) {
+            pullToClose?()
+        }
+    }
 
     private func fittedImageSize() -> CGSize {
         guard let size = image?.size, size.width > 0, size.height > 0,
@@ -178,7 +257,7 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
             setZoomScale(minimumZoomScale, animated: true)
         } else {
             let point = recognizer.location(in: imageView)
-            let scale: CGFloat = 2.5
+            guard let scale = doubleTapScale else { return }
             let size = CGSize(width: bounds.width / scale, height: bounds.height / scale)
             let rect = CGRect(x: point.x - size.width / 2, y: point.y - size.height / 2,
                               width: size.width, height: size.height)
