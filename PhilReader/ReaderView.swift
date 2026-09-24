@@ -226,10 +226,7 @@ struct ReaderView: View {
         .padding(.horizontal, 16)
         .padding(.top, 8)
         .padding(.bottom, 28)
-        .background(
-            LinearGradient(colors: [.black.opacity(0.8), .black.opacity(0)], startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea(edges: .top)
-        )
+        .background(ChromeBackground(edge: .top))
     }
 
     private var bottomBar: some View {
@@ -279,10 +276,7 @@ struct ReaderView: View {
         .padding(.horizontal, 20)
         .padding(.top, 36)
         .padding(.bottom, 12)
-        .background(
-            LinearGradient(colors: [.black.opacity(0), .black.opacity(0.85)], startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea(edges: .bottom)
-        )
+        .background(ChromeBackground(edge: .bottom))
     }
 
     private var modeDescription: String {
@@ -469,6 +463,27 @@ struct ReaderView: View {
     private func close() {
         library.updateProgress(for: comic.id, page: pageIndex)
         dismiss()
+    }
+}
+
+/// Frosted glass behind the reader's top and bottom bars, fading out toward the
+/// page, so the controls stay legible over white pages as well as black ones.
+private struct ChromeBackground: View {
+    let edge: VerticalEdge
+
+    var body: some View {
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .overlay(Color.black.opacity(0.35))
+            .environment(\.colorScheme, .dark)
+            .mask(
+                LinearGradient(stops: [.init(color: .black, location: 0),
+                                       .init(color: .black, location: 0.65),
+                                       .init(color: .clear, location: 1)],
+                               startPoint: edge == .top ? .top : .bottom,
+                               endPoint: edge == .top ? .bottom : .top)
+            )
+            .ignoresSafeArea(edges: edge == .top ? .top : .bottom)
     }
 }
 

@@ -85,6 +85,9 @@ jobs:
             sleep 8
             xcrun simctl io "$UDID" screenshot "screenshots/$name.png"
           }
+          # Warm-up launch: the first run imports the demo library, which is slow on CI.
+          xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoLibrary YES -demoCollections YES -demoLinkFolder Shelf -demoProgress "$PROGRESS"
+          sleep 25
           shoot 1-library
           shoot 2-details -demoInfo "Starfall 2"
           shoot 3-reader-cover -demoOpen "Midnight Ramen 1" -demoPage 1 -demoChrome visible
