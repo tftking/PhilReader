@@ -104,6 +104,20 @@ jobs:
           shoot 17-guided-view -demoOpen "Starfall 2" -demoMode paged -demoPage 3 -demoChrome visible -reader.guided YES
           shoot 18-epub -demoOpen "Moonlit 2" -demoMode paged -demoPage 2 -demoChrome visible -reader.guided NO
 
+      - name: Print screenshot previews
+        # Small JPEGs as base64 in the log, for reviewing the UI where artifact downloads aren't available.
+        if: always()
+        run: |
+          shopt -s nullglob
+          for f in screenshots/*.png; do
+            name=$(basename "$f" .png)
+            sips -Z 900 -s format jpeg -s formatOptions 55 "$f" --out "$RUNNER_TEMP/$name.jpg" >/dev/null
+            echo "@@SHOT $name"
+            base64 -i "$RUNNER_TEMP/$name.jpg" | tr -d '\n' | fold -w 6000
+            echo
+            echo "@@END $name"
+          done
+
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
