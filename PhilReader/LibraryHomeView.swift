@@ -46,10 +46,13 @@ struct LibraryHomeView: View {
                     Button { pickingFolder = true } label: {
                         LibraryRow("Add Library Folder", systemImage: "icloud")
                     }
+                    NavigationLink(value: LibraryRoute.webServer) {
+                        LibraryRow("Web Server", systemImage: "wifi")
+                    }
                 } header: {
                     Text("Import")
                 } footer: {
-                    Text("Import copies comics into PhilReader. A library folder, in iCloud Drive or anywhere in Files, is read in place and kept up to date.")
+                    Text("Import copies comics into PhilReader. A library folder, in iCloud Drive or anywhere in Files, is read in place and kept up to date. Web Server lets you upload from a computer's browser over Wi-Fi.")
                 }
             }
             .listStyle(.insetGrouped)
@@ -142,6 +145,8 @@ struct LibraryHomeView: View {
         if let name = DemoLaunch.collectionName,
            let collection = library.collections.first(where: { $0.name == name }) {
             path.append(LibraryRoute.collection(collection.id))
+        } else if DemoLaunch.opensWebServer {
+            path.append(LibraryRoute.webServer)
         } else if let series = DemoLaunch.seriesName {
             path.append(LibraryRoute.series(series))
         } else if let scope = DemoLaunch.libraryScope ?? (DemoLaunch.selectedTitles.isEmpty ? nil : "all") {
@@ -173,6 +178,8 @@ extension View {
                 SeriesListView()
             case .finished:
                 FinishedListView(actions: actions)
+            case .webServer:
+                WebServerView()
             }
         }
     }

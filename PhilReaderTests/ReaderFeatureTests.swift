@@ -145,3 +145,85 @@ final class VerticalZoomTests: XCTestCase {
         XCTAssertEqual(VerticalZoom.clampedPan(-500, scale: 3, width: 400), -400)
     }
 }
+
+final class ReaderPreferenceTests: XCTestCase {
+    func testTapZonesFollowReadingDirection() {
+        func outcome(_ x: CGFloat, rtl: Bool, left: EdgeTapAction = .turnTowardSide,
+                     right: EdgeTapAction = .turnTowardSide) -> TapZones.Outcome {
+            TapZones.outcome(atFraction: x, zone: 0.3, left: left, right: right, rightToLeft: rtl)
+        }
+        XCTAssertEqual(outcome(0.1, rtl: false), .backward)
+        XCTAssertEqual(outcome(0.9, rtl: false), .forward)
+        XCTAssertEqual(outcome(0.1, rtl: true), .forward, "Manga: the left side moves forward")
+        XCTAssertEqual(outcome(0.9, rtl: true), .backward)
+        XCTAssertEqual(outcome(0.5, rtl: false), .toggleControls)
+        XCTAssertEqual(outcome(0.1, rtl: true, left: .nextPage), .forward)
+        XCTAssertEqual(outcome(0.9, rtl: false, right: .nothing), .nothing)
+        XCTAssertEqual(outcome(0.9, rtl: false, right: .toggleControls), .toggleControls)
+        XCTAssertEqual(TapZones.outcome(atFraction: 0.25, zone: 0.2, left: .nextPage, right: .nextPage,
+                                        rightToLeft: false), .toggleControls, "Outside a narrow zone")
+    }
+
+    func testPresetsRoundTripThroughDefaults() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "ReaderPreferenceTests"))
+        defaults.removePersistentDomain(forName: "ReaderPreferenceTests")
+        var webtoon = try XCTUnwrap(ReaderPreset.builtIn.first { $0.name == "Webtoon" })
+        webtoon.filters = ImageFilterSettings(brightness: 0.1, contrast: 1.2, tone: .sepia)
+        webtoon.apply(to: defaults)
+
+        let current = ReaderPreset.current(named: "Copy", in: defaults)
+        XCTAssertEqual(current.mode, .vertical)
+        XCTAssertEqual(current.fit, PageFit.width.rawValue)
+        XCTAssertFalse(current.rightToLeft)
+        XCTAssertEqual(current.filters, webtoon.filters)
+        XCTAssertTrue(defaults.bool(forKey: ReaderKeys.filtersEnabled))
+
+        let list = PresetList([current])
+        XCTAssertEqual(PresetList(rawValue: list.rawValue), list)
+        XCTAssertNil(PresetList(rawValue: "not json"))
+    }
+
+    func testReadingTimeFormatting() {
+        XCTAssertEqual(ReaderView.duration(65), "1:05")
+        XCTAssertEqual(ReaderView.duration(3_729), "1:02:09")
+        XCTAssertEqual(ReaderView.duration(-4), "0:00")
+    }
+
+    func testOlderLibrariesDecodeWithoutReadingTime() throws {
+        let comic = ComicBook(title: "A", fileName: "a.cbz", pageCount: 3)
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(comic)) as? [String: Any])
+        json["readingTime"] = nil
+        let decoded = try JSONDecoder().decode(ComicBook.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertEqual(decoded.readingTime, 0)
+    }
+}
+
+final class WebServerTests: XCTestCase {
+    func testParsesARequestHead() {
+        let raw = "POST /upload?x=1 HTTP/1.1\r\nHost: phone\r\nContent-Length: 42\r\nX-File-Name: Starfall%201.cbz\r\n\r\nBODY"
+        guard case .complete(let head, let offset) = HTTPRequestHead.parse(Data(raw.utf8)) else {
+            return XCTFail("Expected a complete head")
+        }
+        XCTAssertEqual(head.method, "POST")
+        XCTAssertEqual(head.path, "/upload")
+        XCTAssertEqual(head.contentLength, 42)
+        XCTAssertEqual(head.uploadFileName, "Starfall 1.cbz")
+        XCTAssertEqual(String(decoding: Data(raw.utf8)[offset...], as: UTF8.self), "BODY")
+    }
+
+    func testWaitsForTheWholeHead() {
+        XCTAssertEqual(HTTPRequestHead.parse(Data("GET / HTTP/1.1\r\nHost: x\r\n".utf8)), .incomplete)
+        XCTAssertEqual(HTTPRequestHead.parse(Data("NONSENSE\r\n\r\n".utf8)), .malformed)
+    }
+
+    func testRejectsUnsafeOrUnsupportedFileNames() {
+        func name(_ header: String) -> String? {
+            HTTPRequestHead(method: "POST", path: "/upload", headers: ["x-file-name": header]).uploadFileName
+        }
+        XCTAssertEqual(name("..%2F..%2Fetc%2FStarfall.cbr"), "Starfall.cbr", "Only the last path component is kept")
+        XCTAssertEqual(name("Moonlit.EPUB"), "Moonlit.EPUB")
+        XCTAssertNil(name("notes.txt"))
+        XCTAssertNil(name(".hidden.cbz"))
+        XCTAssertNil(name(""))
+    }
+}

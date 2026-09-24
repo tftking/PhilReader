@@ -48,13 +48,23 @@ ship on their own; ✅ = done, 🚧 = in progress.
 
 ## Phase 6 — Modern design, privacy and platforms 🚧
 - ✅ App icon
-- ✅ Tab bar (Library, Collections, Settings) with a shared reader presenter
-- ✅ "Jump Back In" hero card over a blurred cover
+- ✅ Panels-style tabs: Reading Now, Library, Settings, with Search beside the tab bar (iOS 18+)
+- ✅ Reading Now: current comic, Next Up, Pick Up Where You Left Off, Finished
 - ✅ Settings: library folders, reading defaults, privacy, cache, acknowledgements
 - ✅ Lock with Face ID / Touch ID / passcode, hidden in the app switcher
 - ✅ Mac: runs on Apple Silicon Macs as a "Designed for iPad" app (drag and drop, keyboard page turns)
 - iCloud progress sync across devices (needs a paid Apple Developer account)
 - ✅ Guided view: panel-by-panel reading, with on-device gutter-based panel detection (right-to-left for manga)
+
+## Phase 7 — Panels parity ✅
+- ✅ Panels-style reader controls: glass buttons, title menu, scrub bar with page thumbnails
+- ✅ Reading time: shown while reading and totalled per comic
+- ✅ Gestures and Zoom: choose what each side tap does, tap zone width, double-tap zoom level
+- ✅ Drag down to close the paginated reader
+- ✅ Image filters: brightness, contrast, grayscale, sepia and night
+- ✅ Presets: built-in Manga, Comics, Webtoon and Guided, plus your own
+- ✅ Avoid device margins
+- ✅ Web server: upload comics from a computer's browser over Wi-Fi
 
 ## Out of scope for now
 - Paid tier / subscriptions

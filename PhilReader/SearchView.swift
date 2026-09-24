@@ -54,8 +54,7 @@ struct SearchView: View {
                 }
             }
             .navigationTitle("Search")
-            .searchable(text: $text, placement: .navigationBarDrawer(displayMode: .always),
-                        prompt: "Comics, series, creators")
+            .searchable(text: $text, prompt: "Comics, series, creators")
             .libraryDestinations(path: $path, actions: actions)
             #if DEBUG
             .onAppear {

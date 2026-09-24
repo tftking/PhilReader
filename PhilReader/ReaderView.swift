@@ -18,7 +18,19 @@ struct ReaderView: View {
     @AppStorage("reader.transition") private var transition: PageTransition = .slide
     @AppStorage("reader.keepAwake") private var keepAwake = true
     @AppStorage("reader.showTime") private var showsReadingTime = true
-    @State private var openedAt = Date()
+    @AppStorage(ReaderKeys.leftTap) private var leftTap: EdgeTapAction = .turnTowardSide
+    @AppStorage(ReaderKeys.rightTap) private var rightTap: EdgeTapAction = .turnTowardSide
+    @AppStorage(ReaderKeys.tapZone) private var tapZone: TapZoneSize = .medium
+    @AppStorage(ReaderKeys.doubleTapZoom) private var doubleTapZoom: DoubleTapZoom = .medium
+    @AppStorage(ReaderKeys.dragToClose) private var dragToClose = true
+    @AppStorage(ReaderKeys.avoidMargins) private var avoidMargins = false
+    @AppStorage(ReaderKeys.filters) private var filters = StoredFilters()
+    @AppStorage(ReaderKeys.filtersEnabled) private var filtersEnabled = false
+    @AppStorage(ReaderKeys.presets) private var customPresets = PresetList()
+    @Environment(\.scenePhase) private var scenePhase
+    /// When the current stretch of reading started; `nil` while the app is in the background.
+    @State private var sessionStart: Date? = Date()
+    @State private var showFilters = false
 
     /// Zero-based page; `pageCount` means the end-of-comic card.
     @State private var currentIndex: Int
@@ -60,6 +72,14 @@ struct ReaderView: View {
         mode == .paged && !isGuided && spreadsInLandscape && containerSize.width > containerSize.height
     }
 
+    /// Pages fill the screen unless Avoid Device Margins is on.
+    private var pageEdgesIgnoringSafeArea: Edge.Set { avoidMargins ? [] : .all }
+    private var activeFilters: ImageFilterSettings? { filtersEnabled ? filters.value : nil }
+    private var pullToCloseAction: (() -> Void)? {
+        guard dragToClose else { return nil }
+        return { close() }
+    }
+
     /// The panel guided view is zoomed to on the current page, if known.
     private var focus: (page: Int, rect: CGRect)? {
         guard isGuided, panelsPage == currentIndex, !panels.isEmpty else { return nil }
@@ -85,8 +105,11 @@ struct ReaderView: View {
                 failureView(message)
             case .ready:
                 pages
-                    .ignoresSafeArea()
+                    .ignoresSafeArea(edges: pageEdgesIgnoringSafeArea)
                     .environment(\.colorScheme, background.colorScheme)
+                    .environment(\.pageFilters, activeFilters)
+                    .environment(\.doubleTapScale, doubleTapZoom.scale)
+                    .environment(\.pullToClose, pullToCloseAction)
                     .background(GeometryReader { proxy in
                         Color.clear
                             .onAppear { containerSize = proxy.size }
@@ -120,6 +143,25 @@ struct ReaderView: View {
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
             library.updateProgress(for: comic.id, page: pageIndex)
+            recordReadingTime()
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
+                if sessionStart == nil { sessionStart = Date() }
+            } else {
+                recordReadingTime()
+            }
+        }
+        .sheet(isPresented: $showFilters, onDismiss: scheduleHide) {
+            NavigationStack {
+                ImageFiltersView()
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showFilters = false }
+                        }
+                    }
+            }
+            .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showSettings, onDismiss: scheduleHide) {
             ReaderSettingsSheet(mode: modeBinding, isRightToLeft: directionBinding, guidedView: $guidedView,
@@ -267,6 +309,16 @@ struct ReaderView: View {
                                      : Label("Guided View", systemImage: "viewfinder")
                         }
                     }
+                    Button { hideTask?.cancel(); showFilters = true } label: {
+                        Label("Image Filters", systemImage: "camera.filters")
+                    }
+                    Menu {
+                        ForEach(ReaderPreset.builtIn + customPresets.items) { preset in
+                            Button(preset.name) { apply(preset) }
+                        }
+                    } label: {
+                        Label("Presets", systemImage: "slider.horizontal.3")
+                    }
                 }
             } label: {
                 ChromeCircle(systemImage: "ellipsis")
@@ -296,8 +348,8 @@ struct ReaderView: View {
             }
             HStack {
                 if showsReadingTime {
-                    TimelineView(.periodic(from: openedAt, by: 1)) { context in
-                        Text("Time reading: \(Self.duration(from: openedAt, to: context.date))")
+                    TimelineView(.periodic(from: Date(), by: 1)) { context in
+                        Text("Time reading: \(Self.duration(readingTime(at: context.date)))")
                     }
                 }
                 Spacer()
@@ -320,9 +372,21 @@ struct ReaderView: View {
         .padding(.bottom, 4)
     }
 
+    /// Time spent reading this comic so far, including the current session.
+    private func readingTime(at date: Date) -> TimeInterval {
+        liveComic.readingTime + (sessionStart.map { date.timeIntervalSince($0) } ?? 0)
+    }
+
+    /// Adds the current stretch of reading to the comic's total.
+    private func recordReadingTime() {
+        guard let start = sessionStart else { return }
+        sessionStart = nil
+        library.addReadingTime(comic.id, seconds: Date().timeIntervalSince(start))
+    }
+
     /// "4:05" or "1:02:09".
-    static func duration(from start: Date, to end: Date) -> String {
-        let seconds = max(Int(end.timeIntervalSince(start)), 0)
+    static func duration(_ interval: TimeInterval) -> String {
+        let seconds = max(Int(interval), 0)
         let (h, m, s) = (seconds / 3600, seconds / 60 % 60, seconds % 60)
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
     }
@@ -435,12 +499,21 @@ struct ReaderView: View {
 
     private func handleTap(atFraction x: CGFloat) {
         guard tapToTurn else { return setChrome(visible: !showChrome) }
-        if x < 0.3 {
-            turnPage(towardLeft: true)
-        } else if x > 0.7 {
-            turnPage(towardLeft: false)
+        switch TapZones.outcome(atFraction: x, zone: tapZone.fraction, left: leftTap, right: rightTap,
+                                rightToLeft: mode == .paged && isRightToLeft) {
+        case .forward: advance(by: 1)
+        case .backward: advance(by: -1)
+        case .toggleControls: setChrome(visible: !showChrome)
+        case .nothing: break
+        }
+    }
+
+    /// Moves forward or back a panel in guided view, otherwise a page.
+    private func advance(by delta: Int) {
+        if isGuided && currentIndex < model.pageCount {
+            stepPanel(delta)
         } else {
-            setChrome(visible: !showChrome)
+            step(delta)
         }
     }
 
@@ -493,6 +566,15 @@ struct ReaderView: View {
             guard !Task.isCancelled, !showSettings, !showPages, !isScrubbing else { return }
             withAnimation(.easeOut(duration: 0.3)) { showChrome = false }
         }
+    }
+
+    private func apply(_ preset: ReaderPreset) {
+        preset.apply()
+        library.setReadingMode(comic.id, preset.mode)
+        library.setDirection(comic.id, rightToLeft: preset.rightToLeft)
+        model.sizesForVerticalScroll = preset.mode == .vertical
+        jumpToken += 1
+        scheduleHide()
     }
 
     private func close() {

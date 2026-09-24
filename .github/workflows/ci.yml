@@ -114,6 +114,23 @@ jobs:
           shoot 20-search -demoTab search -demoSearch "moon"
           shoot 21-readers-settings -demoTab settings -demoSettings readers
           shoot 22-reader-scrub -demoOpen "Starfall 1" -demoMode paged -demoPage 6 -demoChrome visible -demoScrub YES
+          shoot 23-gestures -demoTab settings -demoSettings gestures
+          shoot 24-filters -demoTab settings -demoSettings filters -reader.filtersEnabled YES -reader.filters '{"brightness":0.05,"contrast":1.15,"tone":"sepia"}'
+          shoot 25-presets -demoTab settings -demoSettings presets
+          shoot 26-reader-sepia -demoOpen "Starfall 2" -demoMode paged -demoPage 5 -demoChrome hidden -reader.filtersEnabled YES -reader.filters '{"brightness":0.05,"contrast":1.15,"tone":"sepia"}'
+          shoot 27-avoid-margins -demoOpen "Starfall 2" -demoMode paged -demoPage 5 -demoChrome hidden -reader.avoidMargins YES
+
+          # Web server: open it in the app, then upload from this machine as a computer's browser would.
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+          xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoLibrary YES -demoCollections YES -demoLinkFolder Shelf -demoProgress "$PROGRESS" -demoWebServer YES
+          sleep 8
+          "$RUNNER_TEMP/make-sample-cbz" "$RUNNER_TEMP/Night Owl 1.cbz" --series "Night Owl" --number 1 --title "Wide Awake" --hue 0.45 --pages 6
+          echo "GET /:"; curl -sS -m 10 http://127.0.0.1:8080/ | head -c 120 || echo "GET failed"; echo
+          echo "Upload:"; curl -sS -m 60 -H "X-File-Name: Night%20Owl%201.cbz" --data-binary "@$RUNNER_TEMP/Night Owl 1.cbz" http://127.0.0.1:8080/upload || echo "upload failed"; echo
+          echo "Unsupported upload:"; curl -sS -m 10 -H "X-File-Name: notes.txt" --data-binary "hello" http://127.0.0.1:8080/upload || echo "request failed"; echo
+          sleep 3
+          xcrun simctl io "$UDID" screenshot screenshots/28-web-server.png
+          shoot 29-after-upload -demoScope all
 
       - name: Print screenshot previews
         # Small JPEGs as base64 in the log, for reviewing the UI where artifact downloads aren't available.

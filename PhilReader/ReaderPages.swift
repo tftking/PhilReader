@@ -20,6 +20,8 @@ struct PagedReader: View {
     var onSwipe: (Bool) -> Void = { _ in }
     let end: EndOfComicCard
 
+    @Environment(\.pageFilters) private var filters
+
     /// Groups in on-screen order. For right-to-left reading the order is
     /// reversed, so swiping right moves forward like a printed manga.
     private var displayGroups: [[Int]] {
@@ -70,10 +72,12 @@ struct PagedReader: View {
             // A spread is drawn left to right, so manga puts the later page on the left.
             SpreadView(pages: isRightToLeft ? group.reversed() : group, model: model,
                        fit: fit, liveText: liveText, onTap: onTap)
+                .pageFilters(filters)
         } else {
             PageView(index: group[0], model: model, fit: fit,
                      focusRect: focus?.page == group[0] ? focus?.rect : nil,
                      liveText: liveText, onTap: onTap)
+                .pageFilters(filters)
         }
     }
 }
@@ -191,6 +195,7 @@ struct VerticalReader: View {
     /// True until the opening scroll to the saved page has landed, and during
     /// programmatic jumps, so the scroll tracker doesn't overwrite the page.
     @State private var isJumping = true
+    @Environment(\.doubleTapScale) private var doubleTapScale
     @State private var scale: CGFloat = 1
     @State private var baseScale: CGFloat = 1
     @State private var pan: CGFloat = 0
@@ -268,8 +273,8 @@ struct VerticalReader: View {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
                     if scale > 1 {
                         resetZoom()
-                    } else {
-                        scale = VerticalZoom.doubleTapScale
+                    } else if let doubleTapScale {
+                        scale = VerticalZoom.clampedScale(doubleTapScale)
                         baseScale = scale
                     }
                 }
@@ -295,6 +300,7 @@ private struct VerticalPage: View {
     let model: ReaderModel
     let width: CGFloat
 
+    @Environment(\.pageFilters) private var filters
     @State private var image: UIImage?
     @State private var failed = false
 
@@ -307,6 +313,7 @@ private struct VerticalPage: View {
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fit)
                     .transition(.opacity)
+                    .pageFilters(filters)
             } else {
                 PagePlaceholder(number: index + 1, failed: failed)
             }

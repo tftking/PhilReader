@@ -18,6 +18,7 @@ enum LibraryRoute: Hashable {
     case series(String)
     case allSeries
     case finished
+    case webServer
 }
 
 /// Comics in a scope as a grid or list, with search, filters, sorting and selection.

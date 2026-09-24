@@ -23,11 +23,26 @@ struct ZoomablePage: UIViewRepresentable {
         view.focusRect = focusRect
         view.liveTextEnabled = liveText
         view.onTap = onTap
+        view.pullToClose = context.environment.pullToClose
+        view.doubleTapScale = context.environment.doubleTapScale
     }
 }
 
 final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
     var onTap: (CGFloat) -> Void = { _ in }
+
+    /// Called when the page is pulled down past its top edge and let go.
+    var pullToClose: (() -> Void)? {
+        didSet { alwaysBounceVertical = pullToClose != nil }
+    }
+
+    /// How far a double tap zooms in; `nil` turns double-tap zoom off.
+    var doubleTapScale: CGFloat? = 2.5 {
+        didSet { doubleTapRecognizer.isEnabled = doubleTapScale != nil }
+    }
+
+    /// How far down a page must be pulled to close the reader.
+    static let pullToCloseDistance: CGFloat = 90
 
     var image: UIImage? {
         didSet {
@@ -64,6 +79,7 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
     }
 
     private let imageView = UIImageView()
+    private let doubleTapRecognizer = UITapGestureRecognizer()
     /// Guided view: darkens everything outside the current panel.
     private let focusDim: CAShapeLayer = {
         let layer = CAShapeLayer()
@@ -99,12 +115,13 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
         imageView.layer.addSublayer(focusDim)
         addSubview(imageView)
 
-        let doubleTap = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
-        doubleTap.numberOfTapsRequired = 2
-        addGestureRecognizer(doubleTap)
+        isDirectionalLockEnabled = true
+        doubleTapRecognizer.addTarget(self, action: #selector(handleDoubleTap(_:)))
+        doubleTapRecognizer.numberOfTapsRequired = 2
+        addGestureRecognizer(doubleTapRecognizer)
 
         let singleTap = UITapGestureRecognizer(target: self, action: #selector(handleSingleTap(_:)))
-        singleTap.require(toFail: doubleTap)
+        singleTap.require(toFail: doubleTapRecognizer)
         addGestureRecognizer(singleTap)
     }
 
@@ -172,6 +189,25 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
 
     func scrollViewDidZoom(_ scrollView: UIScrollView) { centerContent() }
 
+    /// How far the page has been pulled down past its top edge, when not zoomed in.
+    private var pullDistance: CGFloat {
+        guard pullToClose != nil, zoomScale <= minimumZoomScale + 0.01 else { return 0 }
+        return max(0, -(contentOffset.y + contentInset.top))
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard pullToClose != nil else { return }
+        // Fades as it's pulled, hinting that letting go will close the reader.
+        imageView.alpha = 1 - min(pullDistance / (Self.pullToCloseDistance * 4), 0.35)
+    }
+
+    func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint,
+                                   targetContentOffset: UnsafeMutablePointer<CGPoint>) {
+        if pullDistance > Self.pullToCloseDistance || (pullDistance > 30 && velocity.y < -1.5) {
+            pullToClose?()
+        }
+    }
+
     private func fittedImageSize() -> CGSize {
         guard let size = image?.size, size.width > 0, size.height > 0,
               bounds.width > 0, bounds.height > 0 else { return bounds.size }
@@ -195,7 +231,7 @@ final class ZoomingPageView: UIScrollView, UIScrollViewDelegate {
             setZoomScale(minimumZoomScale, animated: true)
         } else {
             let point = recognizer.location(in: imageView)
-            let scale: CGFloat = 2.5
+            guard let scale = doubleTapScale else { return }
             let size = CGSize(width: bounds.width / scale, height: bounds.height / scale)
             let rect = CGRect(x: point.x - size.width / 2, y: point.y - size.height / 2,
                               width: size.width, height: size.height)

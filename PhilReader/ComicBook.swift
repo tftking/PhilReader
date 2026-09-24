@@ -19,6 +19,8 @@ struct ComicBook: Identifiable, Codable, Equatable {
     /// rather than copied into the app; `relativePath` is inside that folder.
     var linkedFolderID: UUID?
     var relativePath: String?
+    /// Total time spent in the reader, in seconds.
+    var readingTime: TimeInterval
 
     var isLinked: Bool { linkedFolderID != nil }
 
@@ -37,6 +39,7 @@ struct ComicBook: Identifiable, Codable, Equatable {
         self.readsRightToLeft = nil
         self.linkedFolderID = nil
         self.relativePath = nil
+        self.readingTime = 0
     }
 
     init(from decoder: Decoder) throws {
@@ -56,6 +59,7 @@ struct ComicBook: Identifiable, Codable, Equatable {
         readsRightToLeft = try c.decodeIfPresent(Bool.self, forKey: .readsRightToLeft)
         linkedFolderID = try c.decodeIfPresent(UUID.self, forKey: .linkedFolderID)
         relativePath = try c.decodeIfPresent(String.self, forKey: .relativePath)
+        readingTime = try c.decodeIfPresent(TimeInterval.self, forKey: .readingTime) ?? 0
     }
 
     enum ReadStatus {

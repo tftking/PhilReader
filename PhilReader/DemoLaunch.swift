@@ -48,11 +48,13 @@ enum DemoLaunch {
     static var libraryScope: String? { defaults.string(forKey: "demoScope") }
     /// Starts the Search tab with this text.
     static var searchText: String? { defaults.string(forKey: "demoSearch") }
-    /// Opens a settings page: "readers".
+    /// Opens a settings page: "readers", "gestures", "filters" or "presets".
     static var settingsPage: String? { defaults.string(forKey: "demoSettings") }
+    /// Opens Library ▸ Web Server, which starts the upload server.
+    static var opensWebServer: Bool { defaults.bool(forKey: "demoWebServer") }
     /// Whether the launch shows something inside the Library tab.
     static var browsesLibrary: Bool {
-        collectionName != nil || seriesName != nil || libraryScope != nil || !selectedTitles.isEmpty
+        collectionName != nil || seriesName != nil || libraryScope != nil || !selectedTitles.isEmpty || opensWebServer
     }
     /// Links this folder inside Documents as a library folder (standing in for iCloud Drive).
     static var linkedFolderName: String? { defaults.string(forKey: "demoLinkFolder") }

@@ -74,6 +74,11 @@ final class LibraryManager: ObservableObject {
         }
     }
 
+    func addReadingTime(_ id: UUID, seconds: TimeInterval) {
+        guard seconds > 0 else { return }
+        update(id) { $0.readingTime += seconds }
+    }
+
     func markOpened(_ id: UUID) {
         update(id) { $0.lastOpened = Date() }
     }

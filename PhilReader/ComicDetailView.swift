@@ -114,10 +114,21 @@ struct ComicDetailView: View {
             Divider().frame(height: 32)
             stat(value: "\(Int((comic.progress * 100).rounded()))%", label: "Read")
             Divider().frame(height: 32)
+            stat(value: Self.readingTime(comic.readingTime), label: "Reading")
+            Divider().frame(height: 32)
             stat(value: comic.dateAdded.formatted(.dateTime.month(.abbreviated).day()), label: "Added")
         }
         .padding(.vertical, 12)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    /// "1h 5m", "12m", or "–" before a minute has been spent reading.
+    static func readingTime(_ seconds: TimeInterval) -> String {
+        guard seconds >= 60 else { return "–" }
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = seconds >= 3600 ? [.hour, .minute] : [.minute]
+        formatter.unitsStyle = .abbreviated
+        return formatter.string(from: seconds) ?? "–"
     }
 
     private func stat(value: String, label: String) -> some View {

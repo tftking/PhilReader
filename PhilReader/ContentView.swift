@@ -48,53 +48,76 @@ struct ContentView: View {
     @AppStorage("app.tab") private var tab: AppTab = .readingNow
 
     var body: some View {
-        TabView(selection: $tab) {
-            ReadingNowView(showLibrary: { tab = .library })
-                .tabItem { Label("Reading Now", systemImage: "book") }
-                .tag(AppTab.readingNow)
-            LibraryHomeView()
-                .tabItem { Label("Library", systemImage: "books.vertical") }
-                .tag(AppTab.library)
-            SearchView()
-                .tabItem { Label("Search", systemImage: "magnifyingglass") }
-                .tag(AppTab.search)
-            SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape") }
-                .tag(AppTab.settings)
-        }
-        .environmentObject(coordinator)
-        .overlay { if library.isImporting { ImportingOverlay() } }
-        .alert("Couldn't Import", isPresented: Binding(
-            get: { library.importError != nil },
-            set: { if !$0 { library.importError = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(library.importError ?? "")
-        }
-        .sheet(item: $coordinator.pendingAdd) { pending in
-            AddToCollectionSheet(comicIDs: pending.comicIDs, onDone: pending.onDone)
-        }
-        .sheet(item: $coordinator.infoComic, onDismiss: coordinator.openPending) { comic in
-            ComicDetailView(comicID: comic.id) { selected in
-                coordinator.pendingRead = selected
-                coordinator.infoComic = nil
+        tabs
+            .environmentObject(coordinator)
+            .overlay { if library.isImporting { ImportingOverlay() } }
+            .alert("Couldn't Import", isPresented: Binding(
+                get: { library.importError != nil },
+                set: { if !$0 { library.importError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(library.importError ?? "")
+            }
+            .sheet(item: $coordinator.pendingAdd) { pending in
+                AddToCollectionSheet(comicIDs: pending.comicIDs, onDone: pending.onDone)
+            }
+            .sheet(item: $coordinator.infoComic, onDismiss: coordinator.openPending) { comic in
+                ComicDetailView(comicID: comic.id) { selected in
+                    coordinator.pendingRead = selected
+                    coordinator.infoComic = nil
+                }
+            }
+            .fullScreenCover(item: $coordinator.readingComic, onDismiss: coordinator.openPending) { comic in
+                ReaderView(comic: comic, fileURL: library.fileURL(for: comic)) { next in
+                    coordinator.pendingRead = next
+                }
+            }
+            #if DEBUG
+            .onAppear {
+                // Each demo launch picks its tab; the saved tab would otherwise carry over between shots.
+                if DemoLaunch.importsLibrary {
+                    tab = DemoLaunch.tab ?? (DemoLaunch.browsesLibrary ? .library : .readingNow)
+                }
+            }
+            .task { await prepareDemo() }
+            #endif
+    }
+
+    /// On iOS 18 and later Search is a separate button beside the tab bar, as in Panels.
+    @ViewBuilder
+    private var tabs: some View {
+        if #available(iOS 18.0, *) {
+            TabView(selection: $tab) {
+                Tab("Reading Now", systemImage: "book", value: AppTab.readingNow) {
+                    ReadingNowView(showLibrary: { tab = .library })
+                }
+                Tab("Library", systemImage: "books.vertical", value: AppTab.library) {
+                    LibraryHomeView()
+                }
+                Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
+                    SettingsView()
+                }
+                Tab(value: AppTab.search, role: .search) {
+                    SearchView()
+                }
+            }
+        } else {
+            TabView(selection: $tab) {
+                ReadingNowView(showLibrary: { tab = .library })
+                    .tabItem { Label("Reading Now", systemImage: "book") }
+                    .tag(AppTab.readingNow)
+                LibraryHomeView()
+                    .tabItem { Label("Library", systemImage: "books.vertical") }
+                    .tag(AppTab.library)
+                SearchView()
+                    .tabItem { Label("Search", systemImage: "magnifyingglass") }
+                    .tag(AppTab.search)
+                SettingsView()
+                    .tabItem { Label("Settings", systemImage: "gearshape") }
+                    .tag(AppTab.settings)
             }
         }
-        .fullScreenCover(item: $coordinator.readingComic, onDismiss: coordinator.openPending) { comic in
-            ReaderView(comic: comic, fileURL: library.fileURL(for: comic)) { next in
-                coordinator.pendingRead = next
-            }
-        }
-        #if DEBUG
-        .onAppear {
-            // Each demo launch picks its tab; the saved tab would otherwise carry over between shots.
-            if DemoLaunch.importsLibrary {
-                tab = DemoLaunch.tab ?? (DemoLaunch.browsesLibrary ? .library : .readingNow)
-            }
-        }
-        .task { await prepareDemo() }
-        #endif
     }
 
     #if DEBUG

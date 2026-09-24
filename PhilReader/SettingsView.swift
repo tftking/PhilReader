@@ -1,15 +1,16 @@
 import SwiftUI
 
+/// Pages pushed from Settings.
+enum SettingsPage: String, Hashable {
+    case readers, folders, acknowledgements, gestures, filters, presets
+}
+
 struct SettingsView: View {
     @EnvironmentObject private var library: LibraryManager
     @EnvironmentObject private var appLock: AppLock
     @State private var path = NavigationPath()
     @State private var cacheSize: Int64?
     @State private var confirmClear = false
-
-    private enum Page: String, Hashable {
-        case readers, folders, acknowledgements
-    }
 
     private var version: String {
         let info = Bundle.main.infoDictionary
@@ -33,10 +34,10 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    NavigationLink(value: Page.readers) {
+                    NavigationLink(value: SettingsPage.readers) {
                         SettingsLabel("Readers", systemImage: "book")
                     }
-                    NavigationLink(value: Page.folders) {
+                    NavigationLink(value: SettingsPage.folders) {
                         HStack {
                             SettingsLabel("Library Folders", systemImage: "icloud")
                             Spacer()
@@ -71,7 +72,7 @@ struct SettingsView: View {
                 }
 
                 Section("About") {
-                    NavigationLink(value: Page.acknowledgements) {
+                    NavigationLink(value: SettingsPage.acknowledgements) {
                         SettingsLabel("Acknowledgements", systemImage: "heart.text.square")
                     }
                     HStack {
@@ -82,11 +83,14 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-            .navigationDestination(for: Page.self) { page in
+            .navigationDestination(for: SettingsPage.self) { page in
                 switch page {
                 case .readers: ReadersSettingsView()
                 case .folders: LibraryFoldersView()
                 case .acknowledgements: AcknowledgementsView()
+                case .gestures: GesturesSettingsView()
+                case .filters: ImageFiltersView()
+                case .presets: PresetsView()
                 }
             }
             .confirmationDialog("Clear the cache?", isPresented: $confirmClear, titleVisibility: .visible) {
@@ -100,7 +104,10 @@ struct SettingsView: View {
             .task { cacheSize = await library.cacheSize() }
             #if DEBUG
             .onAppear {
-                if path.isEmpty, let page = DemoLaunch.settingsPage.flatMap(Page.init(rawValue:)) { path.append(page) }
+                // "readers" or a page inside it, such as "gestures".
+                guard path.isEmpty, let page = DemoLaunch.settingsPage.flatMap(SettingsPage.init(rawValue:)) else { return }
+                if [.gestures, .filters, .presets].contains(page) { path.append(SettingsPage.readers) }
+                path.append(page)
             }
             #endif
         }
@@ -114,7 +121,6 @@ struct ReadersSettingsView: View {
     @AppStorage("reader.rightToLeft") private var rightToLeft = true
     @AppStorage("reader.mode") private var readingMode: ReadingMode = .paged
     @AppStorage("reader.background") private var background: ReaderBackground = .black
-    @AppStorage("reader.tapToTurn") private var tapToTurn = true
     @AppStorage("reader.liveText") private var liveText = true
     @AppStorage("reader.fit") private var fit: PageFit = .screen
     @AppStorage("reader.spreads") private var spreadsInLandscape = true
@@ -122,6 +128,9 @@ struct ReadersSettingsView: View {
     @AppStorage("reader.transition") private var transition: PageTransition = .slide
     @AppStorage("reader.keepAwake") private var keepAwake = true
     @AppStorage("reader.showTime") private var showsReadingTime = true
+    @AppStorage(ReaderKeys.filtersEnabled) private var filtersEnabled = false
+    @AppStorage(ReaderKeys.dragToClose) private var dragToClose = true
+    @AppStorage(ReaderKeys.avoidMargins) private var avoidMargins = false
 
     var body: some View {
         Form {
@@ -136,8 +145,8 @@ struct ReadersSettingsView: View {
                 Toggle(isOn: $showsReadingTime) {
                     SettingsLabel("Show Reading Time", systemImage: "clock")
                 }
-                Toggle(isOn: $tapToTurn) {
-                    SettingsLabel("Tap Edges to Turn Pages", systemImage: "hand.tap")
+                Toggle(isOn: $dragToClose) {
+                    SettingsLabel("Drag to Close", systemImage: "arrow.down.to.line")
                 }
                 Toggle(isOn: $liveText) {
                     SettingsLabel("Live Text", systemImage: "text.viewfinder")
@@ -195,6 +204,29 @@ struct ReadersSettingsView: View {
                 Text("Paginated Reader")
             } footer: {
                 Text("Guided View zooms to one panel at a time; tap the edges or use the arrow keys to move between panels.")
+            }
+
+            Section {
+                NavigationLink(value: SettingsPage.presets) {
+                    SettingsLabel("Presets", systemImage: "slider.horizontal.3")
+                }
+                NavigationLink(value: SettingsPage.gestures) {
+                    SettingsLabel("Gestures and Zoom", systemImage: "hand.draw")
+                }
+                NavigationLink(value: SettingsPage.filters) {
+                    HStack {
+                        SettingsLabel("Image Filters", systemImage: "camera.filters")
+                        Spacer()
+                        Text(filtersEnabled ? "On" : "Off").foregroundStyle(.secondary)
+                    }
+                }
+                Toggle(isOn: $avoidMargins) {
+                    SettingsLabel("Avoid Device Margins", systemImage: "iphone.gen3")
+                }
+            } header: {
+                Text("Other Features")
+            } footer: {
+                Text("Avoid Device Margins keeps pages clear of the camera housing and rounded corners.")
             }
         }
         .navigationTitle("Readers")
