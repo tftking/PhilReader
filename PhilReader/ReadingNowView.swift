@@ -6,6 +6,7 @@ struct ReadingNowView: View {
 
     @EnvironmentObject private var library: LibraryManager
     @EnvironmentObject private var coordinator: ReadingCoordinator
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var path = NavigationPath()
 
     private var actions: ComicActionHandlers { coordinator.actions }
@@ -57,39 +58,61 @@ struct ReadingNowView: View {
     }
 
     private func content(hero: ComicBook) -> some View {
+        ScrollView {
+            if horizontalSizeClass == .regular {
+                // iPad: the cover beside the lists, rather than a card as wide as the screen.
+                HStack(alignment: .top, spacing: 12) {
+                    heroCard(hero)
+                        .frame(width: 380)
+                    shelves(excluding: hero)
+                }
+                .padding(.top, 6)
+                .padding(.bottom, 32)
+                .frame(maxWidth: 1100)
+                .frame(maxWidth: .infinity)
+            } else {
+                VStack(alignment: .leading, spacing: 30) {
+                    heroCard(hero)
+                    shelves(excluding: hero)
+                }
+                .padding(.top, 6)
+                .padding(.bottom, 32)
+            }
+        }
+    }
+
+    private func heroCard(_ hero: ComicBook) -> some View {
+        HeroCard(comic: hero) { actions.open(hero) }
+            .contextMenu { ComicActions(comic: hero, handlers: actions) }
+            .padding(.horizontal, 20)
+    }
+
+    private func shelves(excluding hero: ComicBook) -> some View {
         let upNext = nextUp.filter { $0.id != hero.id }
         let pickUp = inProgress.filter { $0.id != hero.id }
-        return ScrollView {
-            VStack(alignment: .leading, spacing: 30) {
-                HeroCard(comic: hero) { actions.open(hero) }
-                    .contextMenu { ComicActions(comic: hero, handlers: actions) }
-                    .padding(.horizontal, 20)
-
-                if !upNext.isEmpty {
-                    shelf("Next Up") {
-                        ForEach(upNext) { comic in
-                            row(comic, detail: "Next in \(SeriesGrouping.seriesName(for: comic))", trailing: nil)
-                        }
-                    }
-                }
-                if !pickUp.isEmpty {
-                    shelf("Pick Up Where You Left Off") {
-                        ForEach(pickUp) { comic in
-                            row(comic, detail: comic.lastOpened.map(ComicRow.relative) ?? "Not started",
-                                trailing: "\(Int((comic.progress * 100).rounded()))%")
-                        }
-                    }
-                }
-                if !finished.isEmpty {
-                    shelf("Finished", seeAll: finished.count > 3 ? LibraryRoute.finished : nil) {
-                        ForEach(finished.prefix(3)) { comic in
-                            row(comic, detail: comic.lastOpened.map(ComicRow.relative) ?? "Finished", trailing: nil)
-                        }
+        return VStack(alignment: .leading, spacing: 30) {
+            if !upNext.isEmpty {
+                shelf("Next Up") {
+                    ForEach(upNext) { comic in
+                        row(comic, detail: "Next in \(SeriesGrouping.seriesName(for: comic))", trailing: nil)
                     }
                 }
             }
-            .padding(.top, 6)
-            .padding(.bottom, 32)
+            if !pickUp.isEmpty {
+                shelf("Pick Up Where You Left Off") {
+                    ForEach(pickUp) { comic in
+                        row(comic, detail: comic.lastOpened.map(ComicRow.relative) ?? "Not started",
+                            trailing: "\(Int((comic.progress * 100).rounded()))%")
+                    }
+                }
+            }
+            if !finished.isEmpty {
+                shelf("Finished", seeAll: finished.count > 3 ? LibraryRoute.finished : nil) {
+                    ForEach(finished.prefix(3)) { comic in
+                        row(comic, detail: comic.lastOpened.map(ComicRow.relative) ?? "Finished", trailing: nil)
+                    }
+                }
+            }
         }
     }
 
