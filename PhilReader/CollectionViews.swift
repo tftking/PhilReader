@@ -57,6 +57,11 @@ struct ComicActions: View {
                 library.updateCollection(collectionID) { $0.remove([comic.id]) }
             } label: { Label("Remove from Collection", systemImage: "folder.badge.minus") }
         }
+        if comic.isCloudOnly {
+            Button { Task { await library.download(comic.id) } } label: {
+                Label("Download", systemImage: "icloud.and.arrow.down")
+            }
+        }
         Divider()
         if comic.status == .finished {
             Button { library.markUnread(comic.id) } label: { Label("Mark as Unread", systemImage: "circle") }
@@ -64,55 +69,20 @@ struct ComicActions: View {
             Button { library.markFinished(comic.id) } label: { Label("Mark as Read", systemImage: "checkmark.circle") }
         }
         Divider()
-        Button(role: .destructive) { library.delete(comic) } label: { Label("Delete", systemImage: "trash") }
+        Button(role: .destructive) { library.delete(comic) } label: {
+            // Linked comics stay in their folder; only imported copies are deleted.
+            comic.isLinked ? Label("Remove from Library", systemImage: "minus.circle")
+                           : Label("Delete", systemImage: "trash")
+        }
     }
 }
 
 // MARK: - Collection cards
 
-struct CollectionsShelf: View {
-    let collections: [ComicCollection]
-    let open: (ComicCollection) -> Void
-    let create: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Collections")
-                .font(.title3.bold())
-                .padding(.horizontal, 20)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 14) {
-                    ForEach(collections) { collection in
-                        Button { open(collection) } label: { CollectionCard(collection: collection) }
-                            .buttonStyle(CoverButtonStyle())
-                    }
-                    Button(action: create) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6, 5]))
-                                .foregroundStyle(.tertiary)
-                                .overlay {
-                                    Image(systemName: "plus")
-                                        .font(.title2.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                }
-                                .frame(width: 156, height: 108)
-                            Text("New Collection")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(CoverButtonStyle())
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 4)
-            }
-        }
-    }
-}
-
 struct CollectionCard: View {
     let collection: ComicCollection
+    /// Fixed width for shelves; `nil` fills the available width (grids).
+    var width: CGFloat? = 156
     @EnvironmentObject private var library: LibraryManager
 
     private var previewComics: [ComicBook] {
@@ -136,15 +106,17 @@ struct CollectionCard: View {
                     // Up to three covers fanned out, the chosen cover on top.
                     ForEach(Array(previewComics.enumerated().reversed()), id: \.element.id) { index, comic in
                         ComicCoverView(comic: comic, cornerRadius: 4)
-                            .frame(width: 52)
+                            .frame(width: (width ?? 170) / 3)
                             .rotationEffect(.degrees(Double(index) * 8 - 8), anchor: .bottom)
                             .offset(x: CGFloat(index) * 22 - 22, y: 6)
                     }
                 }
             }
-            .frame(width: 156, height: 108)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .shadow(color: collection.color.color.opacity(0.35), radius: 8, y: 4)
+            .frame(width: width, height: width.map { $0 * 0.7 })
+            .frame(maxWidth: width == nil ? .infinity : nil)
+            .aspectRatio(width == nil ? 1.45 : nil, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .shadow(color: collection.color.color.opacity(0.35), radius: 10, y: 5)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(collection.name)
@@ -155,7 +127,8 @@ struct CollectionCard: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .frame(width: 156, alignment: .leading)
+        .frame(width: width, alignment: .leading)
+        .frame(maxWidth: width == nil ? .infinity : nil, alignment: .leading)
         .foregroundStyle(.primary)
     }
 }
@@ -387,6 +360,7 @@ struct CollectionEditor: View {
 struct PendingCollectionAdd: Identifiable {
     let id = UUID()
     let comicIDs: [UUID]
+    var onDone: () -> Void = {}
 }
 
 struct AddToCollectionSheet: View {

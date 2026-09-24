@@ -61,7 +61,7 @@ struct ReaderView: View {
             background.color.ignoresSafeArea()
 
             switch model.phase {
-            case .opening:
+            case .downloading, .opening:
                 openingView
             case .failed(let message):
                 failureView(message)
@@ -129,7 +129,7 @@ struct ReaderView: View {
     private var openingView: some View {
         VStack(spacing: 16) {
             ProgressView().controlSize(.large).tint(.white)
-            Text("Opening \(comic.displayTitle)…")
+            Text(model.phase == .downloading ? "Downloading from iCloud…" : "Opening \(comic.displayTitle)…")
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.7))
         }
@@ -321,6 +321,7 @@ struct ReaderView: View {
         model.sizesForVerticalScroll = mode == .vertical
         await model.open()
         guard model.phase == .ready else { return }
+        library.didOpen(comic.id, pageCount: model.pageCount)
         currentIndex = min(max(currentIndex, 0), model.pageCount - 1)
         model.prefetch(around: currentIndex)
         #if DEBUG

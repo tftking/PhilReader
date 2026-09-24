@@ -150,6 +150,53 @@ final class FormatTests: XCTestCase {
         }
     }
 
+    // MARK: - Linked folders
+
+    func testFolderScannerFindsComicsAndICloudPlaceholders() throws {
+        let root = tempDir.appendingPathComponent("iCloud Comics", isDirectory: true)
+        let fm = FileManager.default
+        try fm.createDirectory(at: root.appendingPathComponent("Starfall"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: root.appendingPathComponent("Loose Pages"), withIntermediateDirectories: true)
+        try Data("x".utf8).write(to: root.appendingPathComponent("Starfall/Starfall 10.cbz"))
+        try Data("x".utf8).write(to: root.appendingPathComponent("Starfall/Starfall 2.cbr"))
+        try Data("x".utf8).write(to: root.appendingPathComponent("Omnibus.pdf"))
+        try Data("x".utf8).write(to: root.appendingPathComponent(".Moonlit 1.cb7.icloud"))
+        try Data("x".utf8).write(to: root.appendingPathComponent("notes.txt"))
+        try Data("x".utf8).write(to: root.appendingPathComponent(".DS_Store"))
+        try png(width: 10).write(to: root.appendingPathComponent("Loose Pages/1.png"))
+
+        let items = FolderScanner.scan(root)
+        XCTAssertEqual(items.map(\.relativePath),
+                       ["Moonlit 1.cb7", "Omnibus.pdf", "Starfall/Starfall 2.cbr", "Starfall/Starfall 10.cbz"])
+        XCTAssertEqual(items.first { $0.relativePath == "Moonlit 1.cb7" }?.isDownloaded, false)
+        XCTAssertEqual(items.first { $0.relativePath == "Omnibus.pdf" }?.isDownloaded, true)
+    }
+
+    func testLocalFilesCountAsDownloaded() throws {
+        let file = tempDir.appendingPathComponent("local.cbz")
+        XCTAssertFalse(CloudFiles.isDownloaded(file))
+        try Data("x".utf8).write(to: file)
+        XCTAssertTrue(CloudFiles.isDownloaded(file))
+    }
+
+    func testExtractionCacheSeparatesSameNamedArchives() {
+        let a = ExtractedArchive.folderURL(for: URL(fileURLWithPath: "/one/Issue 1.cbr"))
+        let b = ExtractedArchive.folderURL(for: URL(fileURLWithPath: "/two/Issue 1.cbr"))
+        XCTAssertNotEqual(a, b)
+        XCTAssertEqual(a, ExtractedArchive.folderURL(for: URL(fileURLWithPath: "/one/Issue 1.cbr")), "Keys must be stable")
+    }
+
+    func testLinkedComicFieldsRoundTrip() throws {
+        var comic = ComicBook(title: "Starfall 2", fileName: "")
+        comic.linkedFolderID = UUID()
+        comic.relativePath = "Starfall/Starfall 2.cbr"
+        let decoded = try JSONDecoder().decode(ComicBook.self, from: JSONEncoder().encode(comic))
+        XCTAssertTrue(decoded.isLinked)
+        XCTAssertEqual(decoded.relativePath, "Starfall/Starfall 2.cbr")
+        XCTAssertTrue(decoded.isCloudOnly, "No page count yet means not downloaded")
+        XCTAssertEqual(decoded.statusDetail, "In iCloud")
+    }
+
     // MARK: - Helpers
 
     private func makePDF(pages: Int, title: String? = nil, author: String? = nil) -> Data {

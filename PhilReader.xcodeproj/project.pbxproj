@@ -41,6 +41,9 @@
 		222222222222222222222287 /* LibraryOrganization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111187 /* LibraryOrganization.swift */; };
 		222222222222222222222288 /* ComicItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111188 /* ComicItemsView.swift */; };
 		222222222222222222222289 /* CollectionViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111189 /* CollectionViews.swift */; };
+		22222222222222222222228A /* LinkedFolders.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111118A /* LinkedFolders.swift */; };
+		22222222222222222222228B /* AppLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111118B /* AppLock.swift */; };
+		22222222222222222222228C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11111111111111111111118C /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -88,6 +91,9 @@
 		111111111111111111111187 /* LibraryOrganization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryOrganization.swift; sourceTree = "<group>"; };
 		111111111111111111111188 /* ComicItemsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComicItemsView.swift; sourceTree = "<group>"; };
 		111111111111111111111189 /* CollectionViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionViews.swift; sourceTree = "<group>"; };
+		11111111111111111111118A /* LinkedFolders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkedFolders.swift; sourceTree = "<group>"; };
+		11111111111111111111118B /* AppLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLock.swift; sourceTree = "<group>"; };
+		11111111111111111111118C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -143,6 +149,9 @@
 				111111111111111111111187 /* LibraryOrganization.swift */,
 				111111111111111111111188 /* ComicItemsView.swift */,
 				111111111111111111111189 /* CollectionViews.swift */,
+				11111111111111111111118A /* LinkedFolders.swift */,
+				11111111111111111111118B /* AppLock.swift */,
+				11111111111111111111118C /* SettingsView.swift */,
 				11111111111111111111117D /* ComicCoverView.swift */,
 				11111111111111111111117E /* ComicDetailView.swift */,
 				11111111111111111111117F /* ReaderPages.swift */,
@@ -296,6 +305,9 @@
 				222222222222222222222287 /* LibraryOrganization.swift in Sources */,
 				222222222222222222222288 /* ComicItemsView.swift in Sources */,
 				222222222222222222222289 /* CollectionViews.swift in Sources */,
+				22222222222222222222228A /* LinkedFolders.swift in Sources */,
+				22222222222222222222228B /* AppLock.swift in Sources */,
+				22222222222222222222228C /* SettingsView.swift in Sources */,
 				22222222222222222222227D /* ComicCoverView.swift in Sources */,
 				22222222222222222222227E /* ComicDetailView.swift in Sources */,
 				22222222222222222222227F /* ReaderPages.swift in Sources */,

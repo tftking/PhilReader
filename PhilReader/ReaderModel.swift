@@ -5,6 +5,7 @@ import UIKit
 @MainActor
 final class ReaderModel: ObservableObject {
     enum Phase: Equatable {
+        case downloading
         case opening
         case ready
         case failed(String)
@@ -48,6 +49,11 @@ final class ReaderModel: ObservableObject {
         guard document == nil else { return }
         let url = fileURL
         do {
+            if !CloudFiles.isDownloaded(url) {
+                phase = .downloading
+                try await CloudFiles.ensureDownloaded(url)
+                phase = .opening
+            }
             let document = try await Task.detached(priority: .userInitiated) {
                 try ComicSources.open(url)
             }.value

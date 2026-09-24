@@ -61,6 +61,10 @@ jobs:
           sample "Midnight Ramen 1.cb7" --series "Midnight Ramen" --number 1 --title "Open Late" --hue 0.07 --pages 12 --format cb7
           sample "Paper Tigers 1.pdf" --series "Paper Tigers" --number 1 --title "Crease" --hue 0.97 --pages 8 --format pdf
           sample "Moonlit 1" --series Moonlit --number 1 --title "Tides" --hue 0.78 --pages 9 --format folder
+          # A folder linked as a library folder, standing in for one in iCloud Drive.
+          mkdir -p screenshots/comics/Shelf
+          sample "Shelf/Night Market 1.cbz" --series "Night Market" --number 1 --title "Lanterns" --hue 0.13 --pages 8
+          sample "Shelf/Night Market 2.cbz" --series "Night Market" --number 2 --title "Smoke" --hue 0.88 --pages 8
 
           xcrun simctl boot "$UDID" 2>/dev/null || true
           xcrun simctl bootstatus "$UDID" -b
@@ -76,7 +80,7 @@ jobs:
           shoot() {
             local name=$1; shift
             xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
-            xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoLibrary YES -demoCollections YES -demoProgress "$PROGRESS" "$@"
+            xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoLibrary YES -demoCollections YES -demoLinkFolder Shelf -demoProgress "$PROGRESS" "$@"
             sleep 8
             xcrun simctl io "$UDID" screenshot "screenshots/$name.png"
           }
@@ -94,6 +98,8 @@ jobs:
           shoot 12-series -demoSeries "Starfall"
           shoot 13-list-layout -library.layout list
           shoot 14-select -demoSelect "Starfall 1,Moonlit 1"
+          shoot 15-collections-tab -demoTab collections
+          shoot 16-settings -demoTab settings
 
       - name: Upload screenshots
         if: always()

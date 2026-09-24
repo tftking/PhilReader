@@ -15,6 +15,12 @@ struct ComicBook: Identifiable, Codable, Equatable {
     /// Per-comic reader overrides; `nil` falls back to metadata or the app default.
     var readingMode: ReadingMode?
     var readsRightToLeft: Bool?
+    /// Set for comics read in place from a linked folder (e.g. in iCloud Drive)
+    /// rather than copied into the app; `relativePath` is inside that folder.
+    var linkedFolderID: UUID?
+    var relativePath: String?
+
+    var isLinked: Bool { linkedFolderID != nil }
 
     init(id: UUID = UUID(), title: String, fileName: String, pageCount: Int = 0, metadata: ComicMetadata? = nil) {
         self.id = id
@@ -29,6 +35,8 @@ struct ComicBook: Identifiable, Codable, Equatable {
         self.bookmarks = []
         self.readingMode = nil
         self.readsRightToLeft = nil
+        self.linkedFolderID = nil
+        self.relativePath = nil
     }
 
     init(from decoder: Decoder) throws {
@@ -46,6 +54,8 @@ struct ComicBook: Identifiable, Codable, Equatable {
         bookmarks = try c.decodeIfPresent([Int].self, forKey: .bookmarks) ?? []
         readingMode = try c.decodeIfPresent(ReadingMode.self, forKey: .readingMode)
         readsRightToLeft = try c.decodeIfPresent(Bool.self, forKey: .readsRightToLeft)
+        linkedFolderID = try c.decodeIfPresent(UUID.self, forKey: .linkedFolderID)
+        relativePath = try c.decodeIfPresent(String.self, forKey: .relativePath)
     }
 
     enum ReadStatus {

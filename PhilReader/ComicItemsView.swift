@@ -259,7 +259,11 @@ private func seriesDetail(_ comics: [ComicBook]) -> String {
 }
 
 extension ComicBook {
+    /// Linked comics that haven't been downloaded yet don't know their page count.
+    var isCloudOnly: Bool { isLinked && pageCount == 0 }
+
     var statusDetail: String {
+        if isCloudOnly { return "In iCloud" }
         switch status {
         case .unread: return "\(pageCount) pages"
         case .inProgress: return "\(Int((progress * 100).rounded()))% read"

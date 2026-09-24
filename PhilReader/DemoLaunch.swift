@@ -42,6 +42,10 @@ enum DemoLaunch {
     static var selectedTitles: [String] {
         (defaults.string(forKey: "demoSelect") ?? "").split(separator: ",").map(String.init)
     }
+    /// Selects a tab: "library", "collections" or "settings".
+    static var tab: AppTab? { defaults.string(forKey: "demoTab").flatMap { AppTab(rawValue: $0) } }
+    /// Links this folder inside Documents as a library folder (standing in for iCloud Drive).
+    static var linkedFolderName: String? { defaults.string(forKey: "demoLinkFolder") }
     /// Starts on the end-of-comic card.
     static var showsEnd: Bool { defaults.bool(forKey: "demoEnd") }
 }

@@ -12,9 +12,15 @@ enum ExtractedArchive {
             .appendingPathComponent("extracted", isDirectory: true)
     }
 
-    /// Imported comics have unique file names, which key the cache.
+    /// Keyed by file name plus a stable hash of the full path, so same-named
+    /// comics in different linked folders don't share a cache.
     static func folderURL(for archiveURL: URL) -> URL {
-        cacheRoot.appendingPathComponent(archiveURL.lastPathComponent, isDirectory: true)
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325  // FNV-1a
+        for byte in archiveURL.standardizedFileURL.path.utf8 {
+            hash = (hash ^ UInt64(byte)) &* 0x0100_0000_01b3
+        }
+        let key = "\(archiveURL.lastPathComponent)-\(String(hash, radix: 36))"
+        return cacheRoot.appendingPathComponent(key, isDirectory: true)
     }
 
     /// Returns the unpacked folder, running `extract` first if needed.

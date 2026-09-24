@@ -2,12 +2,12 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum LibraryRoute: Hashable {
-    case collection(UUID)
     case series(String)
 }
 
 struct LibraryView: View {
     @EnvironmentObject private var library: LibraryManager
+    @EnvironmentObject private var coordinator: ReadingCoordinator
     @AppStorage("library.sort") private var sort: LibrarySort = .recentlyRead
     @AppStorage("library.filter") private var filter: LibraryFilter = .all
     @AppStorage("library.layout") private var layout: LibraryLayout = .grid
@@ -17,13 +17,8 @@ struct LibraryView: View {
     @State private var search = ""
     @State private var path = NavigationPath()
     @State private var showingFilePicker = false
-    @State private var readingComic: ComicBook?
-    @State private var infoComic: ComicBook?
-    @State private var pendingRead: ComicBook?
     @State private var isSelecting = false
     @State private var selection: Set<UUID> = []
-    @State private var pendingAdd: PendingCollectionAdd?
-    @State private var creatingCollection = false
     @State private var confirmDelete = false
     @State private var isDropTargeted = false
 
@@ -38,11 +33,7 @@ struct LibraryView: View {
     private var continueReading: [ComicBook] { LibraryQuery.continueReading(library.comics) }
     private var isBrowsing: Bool { search.isEmpty && !isSelecting }
     private var showsShelf: Bool { isBrowsing && filter == .all && !continueReading.isEmpty }
-
-    private var actions: ComicActionHandlers {
-        ComicActionHandlers(open: open, info: showInfo,
-                            addToCollection: { pendingAdd = PendingCollectionAdd(comicIDs: [$0.id]) })
-    }
+    private var actions: ComicActionHandlers { coordinator.actions }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -63,7 +54,6 @@ struct LibraryView: View {
             } isTargeted: { isDropTargeted = $0 }
             .navigationDestination(for: LibraryRoute.self) { route in
                 switch route {
-                case .collection(let id): CollectionView(collectionID: id, actions: actions)
                 case .series(let name): SeriesView(name: name, actions: actions)
                 }
             }
@@ -94,26 +84,6 @@ struct LibraryView: View {
         } message: {
             Text("They will be removed from this device.")
         }
-        .sheet(item: $pendingAdd) { pending in
-            AddToCollectionSheet(comicIDs: pending.comicIDs) { setSelecting(false) }
-        }
-        .sheet(isPresented: $creatingCollection) {
-            CollectionEditor(title: "New Collection") { name, color in
-                let collection = library.createCollection(named: name, color: color)
-                path.append(LibraryRoute.collection(collection.id))
-            }
-        }
-        .sheet(item: $infoComic, onDismiss: openPendingComic) { comic in
-            ComicDetailView(comicID: comic.id) { selected in
-                pendingRead = selected
-                infoComic = nil
-            }
-        }
-        .fullScreenCover(item: $readingComic, onDismiss: openPendingComic) { comic in
-            ReaderView(comic: comic, fileURL: library.fileURL(for: comic)) { next in
-                pendingRead = next
-            }
-        }
         #if DEBUG
         .task { await prepareDemo() }
         #endif
@@ -124,14 +94,13 @@ struct LibraryView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
-                if showsShelf {
-                    ContinueReadingShelf(comics: continueReading, actions: actions)
-                }
-
-                if isBrowsing && filter == .all {
-                    CollectionsShelf(collections: library.collections,
-                                     open: { path.append(LibraryRoute.collection($0.id)) },
-                                     create: { creatingCollection = true })
+                if showsShelf, let latest = continueReading.first {
+                    JumpBackInCard(comic: latest) { actions.open(latest) }
+                        .contextMenu { ComicActions(comic: latest, handlers: actions) }
+                        .padding(.horizontal, 20)
+                    if continueReading.count > 1 {
+                        ContinueReadingShelf(comics: Array(continueReading.dropFirst()), actions: actions)
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 16) {
@@ -150,6 +119,7 @@ struct LibraryView: View {
             .padding(.bottom, 32)
         }
         .searchable(text: $search, prompt: "Titles, series, creators")
+        .refreshable { await library.rescanLinkedFolders() }
         .animation(.default, value: filter)
         .animation(.default, value: sort)
         .animation(.default, value: layout)
@@ -181,7 +151,7 @@ struct LibraryView: View {
                 }
                 .disabled(selection.isEmpty)
                 Spacer()
-                Button { pendingAdd = PendingCollectionAdd(comicIDs: Array(selection)) } label: {
+                Button { coordinator.addToCollection(Array(selection)) { setSelecting(false) } } label: {
                     Label("Add to Collection", systemImage: "folder.badge.plus")
                 }
                 .disabled(selection.isEmpty)
@@ -270,22 +240,6 @@ struct LibraryView: View {
 
     // MARK: - Actions
 
-    private func open(_ comic: ComicBook) {
-        if comic.isFinished { library.restart(comic.id) }
-        readingComic = library.comic(withID: comic.id) ?? comic
-    }
-
-    private func showInfo(_ comic: ComicBook) {
-        infoComic = comic
-    }
-
-    /// Opens a comic chosen from a sheet or the reader once that has dismissed.
-    private func openPendingComic() {
-        guard let comic = pendingRead else { return }
-        pendingRead = nil
-        open(comic)
-    }
-
     private func setSelecting(_ selecting: Bool) {
         withAnimation(.easeInOut(duration: 0.2)) {
             isSelecting = selecting
@@ -296,8 +250,8 @@ struct LibraryView: View {
     #if DEBUG
     private func prepareDemo() async {
         await library.prepareDemoLibrary()
-        if let name = DemoLaunch.collectionName, let collection = library.collections.first(where: { $0.name == name }) {
-            path.append(LibraryRoute.collection(collection.id))
+        if DemoLaunch.collectionName != nil || DemoLaunch.tab != nil {
+            return
         } else if let series = DemoLaunch.seriesName {
             path.append(LibraryRoute.series(series))
         } else if !DemoLaunch.selectedTitles.isEmpty {
@@ -306,9 +260,9 @@ struct LibraryView: View {
         } else if let title = DemoLaunch.openTitle, let comic = library.comics.first(where: { $0.title == title }) {
             if let mode = DemoLaunch.mode { library.setReadingMode(comic.id, mode) }
             if let page = DemoLaunch.page { library.updateProgress(for: comic.id, page: max(page - 1, 0)) }
-            readingComic = library.comic(withID: comic.id)
+            coordinator.readingComic = library.comic(withID: comic.id)
         } else if let title = DemoLaunch.infoTitle, let comic = library.comics.first(where: { $0.title == title }) {
-            infoComic = comic
+            coordinator.infoComic = comic
         }
     }
     #endif
@@ -316,13 +270,82 @@ struct LibraryView: View {
 
 // MARK: - Continue Reading
 
+/// The most recently read comic, large, over its own blurred cover.
+private struct JumpBackInCard: View {
+    let comic: ComicBook
+    let open: () -> Void
+
+    @EnvironmentObject private var library: LibraryManager
+    @State private var backdrop: UIImage?
+
+    var body: some View {
+        Button(action: open) {
+            HStack(spacing: 18) {
+                ComicCoverView(comic: comic, cornerRadius: 8)
+                    .frame(width: 100)
+                    .shadow(color: .black.opacity(0.45), radius: 12, y: 8)
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("JUMP BACK IN")
+                        .font(.caption2.weight(.heavy))
+                        .tracking(1.4)
+                        .foregroundStyle(.white.opacity(0.7))
+                    Text(comic.displayTitle)
+                        .font(.title3.bold())
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    Text("Page \(comic.currentPage + 1) of \(comic.pageCount)")
+                        .font(.subheadline)
+                        .monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.75))
+                    ProgressBar(value: comic.progress)
+                        .frame(maxWidth: 150)
+                        .padding(.vertical, 2)
+                    Label("Continue", systemImage: "play.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(.white, in: Capsule())
+                        .foregroundStyle(.black)
+                        .padding(.top, 4)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                ZStack {
+                    Color(white: 0.12)
+                    if let backdrop {
+                        Image(uiImage: backdrop)
+                            .resizable()
+                            .scaledToFill()
+                            .blur(radius: 40)
+                            .saturation(1.4)
+                            .transition(.opacity)
+                    }
+                    LinearGradient(colors: [.black.opacity(0.1), .black.opacity(0.55)], startPoint: .top, endPoint: .bottom)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(.white.opacity(0.08)))
+            .shadow(color: .black.opacity(0.22), radius: 18, y: 10)
+        }
+        .buttonStyle(CoverButtonStyle())
+        .task(id: comic.id) {
+            let image = await library.coverImage(for: comic)
+            withAnimation(.easeOut(duration: 0.3)) { backdrop = image }
+        }
+    }
+}
+
 private struct ContinueReadingShelf: View {
     let comics: [ComicBook]
     let actions: ComicActionHandlers
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Continue Reading")
+            Text("Also Reading")
                 .font(.title3.bold())
                 .padding(.horizontal, 20)
 

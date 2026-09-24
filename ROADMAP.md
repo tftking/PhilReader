@@ -40,15 +40,19 @@ ship on their own; ✅ = done, 🚧 = in progress.
 - ✅ Grid and list layouts; small / medium / large covers
 - ✅ Drag and drop import (iPad, Mac)
 
-## Phase 5 — Sources
-- OPDS client: browse, search, stream and download
-- Komga and Kavita, with reading progress synced back to the server
-- iCloud Drive library folder
+## Phase 5 — Library folders ✅
+- ✅ Link folders in iCloud Drive (or anywhere in Files): comics are read in place, new files
+  appear automatically, iCloud files download on open, unlinking never deletes files
+- Not planned: OPDS / Komga / Kavita servers
 
-## Phase 6 — Sync, privacy and platforms
-- iCloud progress sync across iPhone, iPad and Mac (needs a paid Apple Developer account)
-- Lock with Face ID / Touch ID / passcode
-- Mac app (Designed for iPad or Mac Catalyst)
+## Phase 6 — Modern design, privacy and platforms 🚧
+- ✅ App icon
+- ✅ Tab bar (Library, Collections, Settings) with a shared reader presenter
+- ✅ "Jump Back In" hero card over a blurred cover
+- ✅ Settings: library folders, reading defaults, privacy, cache, acknowledgements
+- ✅ Lock with Face ID / Touch ID / passcode, hidden in the app switcher
+- ✅ Mac: runs on Apple Silicon Macs as a "Designed for iPad" app (drag and drop, keyboard page turns)
+- iCloud progress sync across devices (needs a paid Apple Developer account)
 - Guided view: panel-by-panel reading (panel detection with Vision)
 
 ## Out of scope for now

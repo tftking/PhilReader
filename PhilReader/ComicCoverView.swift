@@ -27,7 +27,8 @@ struct ComicCoverView: View {
                     .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
             )
             .shadow(color: .black.opacity(0.28), radius: 6, x: 0, y: 4)
-            .task(id: comic.id) {
+            // Re-runs when a cloud comic finishes downloading and learns its page count.
+            .task(id: "\(comic.id)-\(comic.pageCount)") {
                 guard cover == nil else { return }
                 let image = await library.coverImage(for: comic)
                 withAnimation(.easeOut(duration: 0.2)) { cover = image }
@@ -38,7 +39,7 @@ struct ComicCoverView: View {
     private var placeholder: some View {
         LinearGradient(colors: [Color(.systemGray4), Color(.systemGray5)], startPoint: .top, endPoint: .bottom)
             .overlay {
-                Image(systemName: "book.closed.fill")
+                Image(systemName: comic.isCloudOnly ? "icloud.and.arrow.down" : "book.closed.fill")
                     .font(.system(size: 28))
                     .foregroundStyle(.tertiary)
             }
