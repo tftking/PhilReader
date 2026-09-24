@@ -168,7 +168,8 @@ final class ReaderPreferenceTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "ReaderPreferenceTests"))
         defaults.removePersistentDomain(forName: "ReaderPreferenceTests")
         var webtoon = try XCTUnwrap(ReaderPreset.builtIn.first { $0.name == "Webtoon" })
-        webtoon.filters = ImageFilterSettings(brightness: 0.1, contrast: 1.2, tone: .sepia)
+        // Binary-exact values, so JSON round trips compare equal.
+        webtoon.filters = ImageFilterSettings(brightness: 0.25, contrast: 1.5, tone: .sepia)
         webtoon.apply(to: defaults)
 
         let current = ReaderPreset.current(named: "Copy", in: defaults)
