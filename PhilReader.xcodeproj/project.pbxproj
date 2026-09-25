@@ -15,6 +15,7 @@
 		2222222222222222222222FF /* CBZService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1111111111111111111111FF /* CBZService.swift */; };
 		222222222222222222222200 /* LibraryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111100 /* LibraryManager.swift */; };
 		222222222222222222222201 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111102 /* Assets.xcassets */; };
+		222222222222222222222296 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 111111111111111111111196 /* PrivacyInfo.xcprivacy */; };
 		222222222222222222222202 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 5555555555555555555555BB /* ZIPFoundation */; };
 		666666666666666666666601 /* CBZServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666666666666602 /* CBZServiceTests.swift */; };
 		666666666666666666666603 /* ComicBookTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666666666666604 /* ComicBookTests.swift */; };
@@ -78,6 +79,7 @@
 		111111111111111111111100 /* LibraryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryManager.swift; sourceTree = "<group>"; };
 		111111111111111111111101 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		111111111111111111111102 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		111111111111111111111196 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		666666666666666666666606 /* PhilReaderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PhilReaderTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		666666666666666666666602 /* CBZServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CBZServiceTests.swift; sourceTree = "<group>"; };
 		666666666666666666666604 /* ComicBookTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComicBookTests.swift; sourceTree = "<group>"; };
@@ -191,6 +193,7 @@
 				111111111111111111111182 /* ReaderLayout.swift */,
 				111111111111111111111101 /* Info.plist */,
 				111111111111111111111102 /* Assets.xcassets */,
+				111111111111111111111196 /* PrivacyInfo.xcprivacy */,
 			);
 			path = PhilReader;
 			sourceTree = "<group>";
@@ -308,6 +311,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				222222222222222222222201 /* Assets.xcassets in Resources */,
+				222222222222222222222296 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

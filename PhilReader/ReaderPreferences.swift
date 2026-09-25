@@ -276,6 +276,13 @@ struct ReaderPreset: Identifiable, Codable, Equatable {
 struct PresetList: RawRepresentable, Equatable {
     var items: [ReaderPreset]
 
+    /// Sorted keys keep the stored text stable: RawRepresentable types compare by it.
+    private static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        return encoder
+    }()
+
     init(_ items: [ReaderPreset] = []) { self.items = items }
 
     init?(rawValue: String) {
@@ -285,13 +292,20 @@ struct PresetList: RawRepresentable, Equatable {
     }
 
     var rawValue: String {
-        (try? JSONEncoder().encode(items)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
+        (try? Self.encoder.encode(items)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
     }
 }
 
 /// Image filter settings, stored as JSON so `@AppStorage` can hold them.
 struct StoredFilters: RawRepresentable, Equatable {
     var value: ImageFilterSettings
+
+    /// Sorted keys keep the stored text stable: RawRepresentable types compare by it.
+    private static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        return encoder
+    }()
 
     init(_ value: ImageFilterSettings = ImageFilterSettings()) { self.value = value }
 
@@ -302,7 +316,7 @@ struct StoredFilters: RawRepresentable, Equatable {
     }
 
     var rawValue: String {
-        (try? JSONEncoder().encode(value)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+        (try? Self.encoder.encode(value)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
     }
 }
 
