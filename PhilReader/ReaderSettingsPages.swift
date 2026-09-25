@@ -58,7 +58,7 @@ struct GesturesSettingsView: View {
                     SettingsLabel("Drag Down to Close", systemImage: "arrow.down.to.line")
                 }
             } footer: {
-                Text("In the paginated reader, pull a page down to close the comic.")
+                Text("Pull down from the top of the page to close the comic, in either reader.")
             }
         }
         .navigationTitle("Gestures and Zoom")

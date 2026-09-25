@@ -12,6 +12,10 @@ struct ReaderSettingsSheet: View {
     @Binding var tapToTurn: Bool
     @Binding var liveText: Bool
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("reader.keepAwake") private var keepAwake = true
+    @AppStorage("reader.showTime") private var showsReadingTime = true
+    @AppStorage(ReaderKeys.filtersEnabled) private var filtersEnabled = false
+    @AppStorage(ReaderKeys.avoidMargins) private var avoidMargins = false
 
     var body: some View {
         NavigationStack {
@@ -84,14 +88,36 @@ struct ReaderSettingsSheet: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        ImageFiltersView()
+                    } label: {
+                        HStack {
+                            Text("Image Filters")
+                            Spacer()
+                            Text(filtersEnabled ? "On" : "Off").foregroundStyle(.secondary)
+                        }
+                    }
+                    Toggle("Keep Display On", isOn: $keepAwake)
+                    Toggle("Show Reading Time", isOn: $showsReadingTime)
+                    Toggle("Avoid Device Margins", isOn: $avoidMargins)
+                } header: {
+                    Text("Display")
+                } footer: {
+                    Text("Avoid Device Margins keeps pages clear of the camera housing and rounded corners.")
+                }
+
+                Section {
                     Toggle("Tap Edges to Turn Pages", isOn: $tapToTurn)
                     if ImageAnalyzer.isSupported {
                         Toggle("Live Text", isOn: $liveText)
                     }
+                    NavigationLink("Gestures and Zoom") {
+                        GesturesSettingsView()
+                    }
                 } header: {
                     Text("Controls")
                 } footer: {
-                    Text("Tap the middle of a page to show or hide the controls. Double-tap or pinch to zoom. With Live Text, touch and hold text on a page to copy or translate it.")
+                    Text("Tap the middle of a page to show or hide the controls. Double-tap or pinch to zoom, and pull down from the top of the page to close. With Live Text, touch and hold text on a page to copy or translate it.")
                 }
             }
             .navigationTitle("Reader Settings")

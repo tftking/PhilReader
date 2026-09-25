@@ -31,7 +31,7 @@ enum DemoLaunch {
     static var chrome: String? { defaults.string(forKey: "demoChrome") }
     /// Reading mode for the opened comic: "paged" or "vertical".
     static var mode: ReadingMode? { defaults.string(forKey: "demoMode").flatMap { ReadingMode(rawValue: $0) } }
-    /// Opens a reader sheet: "pages" or "settings".
+    /// Opens a reader sheet: "pages", "settings" or "settings-full" (expanded to full height).
     static var sheet: String? { defaults.string(forKey: "demoSheet") }
     /// Creates two sample collections if there are none.
     static var createsCollections: Bool { defaults.bool(forKey: "demoCollections") }

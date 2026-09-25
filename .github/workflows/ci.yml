@@ -117,6 +117,7 @@ jobs:
           shoot 5-reader-page -demoOpen "Starfall 2" -demoPage 5 -demoChrome hidden
           shoot 6-page-browser -demoOpen "Starfall 2" -demoPage 4 -demoSheet pages
           shoot 7-reader-settings -demoOpen "Starfall 2" -demoPage 4 -demoSheet settings
+          shoot 39-reader-settings-full -demoOpen "Starfall 2" -demoPage 4 -demoSheet settings-full
           shoot 8-vertical-scroll -demoOpen "Moonlit 1" -demoMode vertical -demoPage 2 -demoChrome visible
           shoot 9-end-of-comic -demoOpen "Starfall 1" -demoEnd YES -demoChrome hidden
           shoot 10-pdf -demoOpen "Paper Tigers 1" -demoMode paged -demoPage 2 -demoChrome visible
