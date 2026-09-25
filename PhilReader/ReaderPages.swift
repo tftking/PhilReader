@@ -192,6 +192,8 @@ struct VerticalReader: View {
     /// programmatic jumps, so the scroll tracker doesn't overwrite the page.
     @State private var isJumping = true
     @Environment(\.doubleTapScale) private var doubleTapScale
+    @Environment(\.pullToClose) private var pullToClose
+    @State private var isClosing = false
     @State private var scale: CGFloat = 1
     @State private var baseScale: CGFloat = 1
     @State private var pan: CGFloat = 0
@@ -216,6 +218,13 @@ struct VerticalReader: View {
                 .coordinateSpace(name: VerticalReader.space)
                 .onPreferenceChange(PageOffsetsKey.self) { offsets in
                     guard !isJumping else { return }
+                    // Pulling the first page down past the top of the strip closes the reader.
+                    if let pullToClose, !isClosing, scale <= 1,
+                       let top = offsets[0], top > VerticalReader.pullToCloseDistance {
+                        isClosing = true
+                        pullToClose()
+                        return
+                    }
                     // The current page is the last one whose top edge has passed 40% of the screen.
                     let threshold = outer.size.height * 0.4
                     let visible = offsets.filter { $0.value <= threshold }.map(\.key).max() ?? 0
@@ -289,6 +298,8 @@ struct VerticalReader: View {
     }
 
     static let space = "verticalReader"
+    /// How far the first page must be pulled down to close the reader.
+    static let pullToCloseDistance: CGFloat = 110
 }
 
 private struct VerticalPage: View {

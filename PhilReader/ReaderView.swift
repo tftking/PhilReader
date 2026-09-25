@@ -31,6 +31,7 @@ struct ReaderView: View {
     /// When the current stretch of reading started; `nil` while the app is in the background.
     @State private var sessionStart: Date? = Date()
     @State private var showFilters = false
+    @State private var settingsDetent: PresentationDetent = .medium
 
     /// Zero-based page; `pageCount` means the end-of-comic card.
     @State private var currentIndex: Int
@@ -140,6 +141,7 @@ struct ReaderView: View {
             model.sizesForVerticalScroll = newMode == .vertical
         }
         .onAppear { UIApplication.shared.isIdleTimerDisabled = keepAwake }
+        .onChange(of: keepAwake) { UIApplication.shared.isIdleTimerDisabled = $0 }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
             library.updateProgress(for: comic.id, page: pageIndex)
@@ -168,7 +170,7 @@ struct ReaderView: View {
                                 transition: $transition, fit: $fit,
                                 spreadsInLandscape: $spreadsInLandscape, background: $background,
                                 tapToTurn: $tapToTurn, liveText: $liveText)
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.medium, .large], selection: $settingsDetent)
         }
         .sheet(isPresented: $showPages, onDismiss: scheduleHide) {
             PageBrowserView(model: model, currentIndex: pageIndex, bookmarks: liveComic.bookmarks) { index in
@@ -453,6 +455,10 @@ struct ReaderView: View {
         switch DemoLaunch.sheet {
         case "pages": showPages = true; return
         case "settings": showSettings = true; return
+        case "settings-full":
+            settingsDetent = .large
+            showSettings = true
+            return
         default: break
         }
         if DemoLaunch.chrome == "hidden" { showChrome = false; return }
